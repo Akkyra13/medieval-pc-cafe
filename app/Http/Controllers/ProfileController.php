@@ -3,8 +3,9 @@
 namespace App\Http\Controllers;
 
 use Illuminate\Http\Request;
+use App\Models\Akun;
 
-class DashboardController extends Controller
+class ProfileController extends Controller
 {
     public function index(Request $req)
     {
@@ -23,7 +24,7 @@ class DashboardController extends Controller
 
         // output
         return view($output, [
-            'currentPage' => $page, //access passed to the view with $currentPage
-        ]);
+                'currentPage' => $page, //access passed to the view with $currentPage
+            ]);
     }
 }

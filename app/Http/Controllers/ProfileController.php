@@ -4,6 +4,8 @@ namespace App\Http\Controllers;
 
 use Illuminate\Http\Request;
 use App\Models\Akun;
+use App\Models\SaldoWaktu;
+use Illuminate\Support\Facades\Auth;
 
 
 class ProfileController extends Controller
@@ -13,9 +15,9 @@ class ProfileController extends Controller
      */
     public function index()
     {
-        // $data ->
-        // return view('profile');
-        echo('food');
+        $user = Akun::where('id_akun', Auth::id())->first();
+        $billing = SaldoWaktu::where('id_akun', Auth::id());
+        return view('user.profile', compact('user', 'billing'));
     }
 
     /**
@@ -23,7 +25,6 @@ class ProfileController extends Controller
      */
     public function create()
     {
-        //
     }
 
     /**

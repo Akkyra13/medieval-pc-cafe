@@ -60,8 +60,13 @@ class LoginController extends Controller
             $user = Akun::where('id_akun', Auth::id())->first();
             session(['akses' => $user?->id_akses ]);
 
-            return redirect()->intended($this->redirectTo)
-                ->with('success', 'Login Berhasil');
+            if ($user->id_akses === 1) {
+                return redirect()->intended(route('admin.pc'))
+                    ->with('success', 'Login Berhasil');
+            } else {
+                return redirect()->intended($this->redirectTo)
+                    ->with('success', 'Login Berhasil');
+            }
         }
 
         return back()->withErrors(['username' => 'Login gagal']);

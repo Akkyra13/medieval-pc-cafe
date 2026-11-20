@@ -1,31 +1,47 @@
 <?php
-
-namespace App\Models;
-
-// use Illuminate\Contracts\Auth\MustVerifyEmail;
-use Database\Factories\UserFactory;
-use Illuminate\Database\Eloquent\Model;
-use Illuminate\Database\Eloquent\Attributes\Fillable;
-use Illuminate\Database\Eloquent\Attributes\Hidden;
-use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Foundation\Auth\User as Authenticatable;
-use Illuminate\Notifications\Notifiable;
 
-#[Fillable(['name', 'email', 'password'])]
-#[Hidden(['password', 'remember_token'])]
-class Akun extends Model
+class Akun extends Authenticatable
 {
+    protected $table = 'akun';
+    protected $primaryKey = 'id_akun';
+    public $timestamps = false;
 
-    /**
-     * Get the attributes that should be cast.
-     *
-     * @return array<string, string>
-     */
-    protected function casts(): array
+    protected $fillable = [
+        'id_akses',
+        'username',
+        'password',
+        'nama',
+        'notelp',
+        'saldo_deposit',
+    ];
+
+    protected $hidden = [
+        'password',
+    ];
+
+    public function hakAkses()
     {
-        return [
-            'email_verified_at' => 'datetime',
-            'password' => 'hashed',
-        ];
+        return $this->belongsTo(HakAkses::class, 'id_akses', 'id_akses');
+    }
+
+    public function saldoWaktu()
+    {
+        return $this->hasMany(SaldoWaktu::class, 'id_akun', 'id_akun');
+    }
+
+    public function transaksiPelanggan()
+    {
+        return $this->hasMany(Transaksi::class, 'id_akun_pelanggan', 'id_akun');
+    }
+
+    public function transaksiKasir()
+    {
+        return $this->hasMany(Transaksi::class, 'id_akun_kasir', 'id_akun');
+    }
+
+    public function sesiBermain()
+    {
+        return $this->hasMany(SesiBermain::class, 'id_akun', 'id_akun');
     }
 }

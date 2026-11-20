@@ -1,16 +1,31 @@
 <?php
 
 use Illuminate\Support\Facades\Route;
-use App\Http\Controllers\AuthController;
-use App\Http\Controllers\DashboardController;
 
-Route::get('/', function () {
-    return view('welcome');
-});
+Route::get('/login', function () {
+    return view('login');
+})->name('login');
 
-Route::view('/login', 'halaman.login')->name('login');
-Route::post('/login', [AuthController::class, 'userAuth']);
+Route::get('/denah-pc', function () {
+    return view('user.denah-pc');
+})->name('user.denah');
 
-Route::get('/dashboard', [DashboardController::class, 'index'])->name('dashboard');
+Route::get('/beli-billing', function () {
+    return view('user.beli-billing');
+})->name('user.billing');
 
-Route::view('/admin', 'admin.dashboard')->name('admindashboard');
+Route::get('/profile', function () {
+    return view('user.profile');
+})->name('user.profile');
+
+Route::get('/admin/manajemen-pc', function () {
+    return view('admin.manajemen-pc');
+})->name('admin.pc');
+
+Route::get('/admin/manajemen-akun', function () {
+    return view('admin.manajemen-akun');
+})->name('admin.akun');
+
+Route::get('/admin/manajemen-billing', function () {
+    return view('admin.manajemen-billing');
+})->name('admin.billing');

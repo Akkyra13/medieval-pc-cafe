@@ -4,27 +4,23 @@ namespace App\Http\Controllers;
 
 use Illuminate\Http\Request;
 use App\Models\Akun;
+use App\Models\SaldoWaktu;
+use Illuminate\Support\Facades\Auth;
 
 class ProfileController extends Controller
 {
     public function index(Request $req)
     {
-        $page = $req->query('page', 'dashboard');
+        $user = Akun::where('id_akun', Auth::id())->first();
+        $billing = SaldoWaktu::where('id_akun', Auth::id());
+        return view('user.profile', compact('user', 'billing'));
+    }
 
-        //array of allowed pages
-        //'query param' => 'blade view file'
-        $views = [
-            'myaccount' => 'myaccount',
-            'billing' => 'bill',
-            'map' => 'map',
-        ];
+    /**
+     * Show the form for creating a new resource.
+     */
+    public function create()
+    {
 
-        //default
-        $output = $views[$page] ?? 'dashboard';
-
-        // output
-        return view($output, [
-                'currentPage' => $page, //access passed to the view with $currentPage
-            ]);
     }
 }

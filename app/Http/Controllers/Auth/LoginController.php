@@ -4,6 +4,9 @@ namespace App\Http\Controllers\Auth;
 
 use App\Http\Controllers\Controller;
 use Illuminate\Foundation\Auth\AuthenticatesUsers;
+use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Auth;
+use App\Models\Akun;
 
 class LoginController extends Controller
 {
@@ -25,7 +28,7 @@ class LoginController extends Controller
      *
      * @var string
      */
-    protected $redirectTo = '/home';
+    protected $redirectTo = '/profile';
 
     /**
      * Create a new controller instance.
@@ -36,5 +39,39 @@ class LoginController extends Controller
     {
         $this->middleware('guest')->except('logout');
         $this->middleware('auth')->only('logout');
+    }
+
+    public function validated(Request $data): array
+    {
+        $output = $data->validate([
+            'username' => 'required',
+            'password' => 'required',
+        ]);
+
+        return $output;
+    }
+
+    public function login(Request $req)
+    {
+        $data = $this->validated($req);
+
+        if (Auth::attempt($data)) {
+            $req->session()->regenerate();
+            $user = Akun::where('id_akun', Auth::id())->first();
+            session(['akses' => $user?->id_akses ]);
+
+            return redirect()->intended($this->redirectTo)
+                ->with('success', 'Login Berhasil');
+        }
+
+        return back()->withErrors(['username' => 'Login gagal']);
+    }
+
+    public function logout(Request $req)
+    {
+        Auth::logout();
+        $req->session()->invalidate();
+        $req->session()->regenerateToken();
+        return redirect('/login');
     }
 }

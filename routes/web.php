@@ -8,12 +8,12 @@ Route::get('/', function () {
     return view('welcome');
 });
 
-Route::view('/login', 'halaman.login')->name('login');
-Route::post('/login', [AuthController::class, 'userAuth']);
+// Route::view('/login', 'halaman.login')->name('login');
+// Route::post('/login', [AuthController::class, 'userAuth']);
+
+Auth::routes();
 
 Route::get('/profile', [ProfileController::class, 'index'])->name('profile');
 
-
-Auth::routes();
 
 Route::get('/home', [App\Http\Controllers\HomeController::class, 'index'])->name('home');

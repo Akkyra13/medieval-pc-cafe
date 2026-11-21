@@ -6,6 +6,10 @@ Route::get('/login', function () {
     return view('login');
 })->name('login');
 
+Route::post('/logout', function () {
+    return redirect()->route('login');
+})->name('logout');
+
 Route::get('/denah-pc', function () {
     return view('user.denah-pc');
 })->name('user.denah');

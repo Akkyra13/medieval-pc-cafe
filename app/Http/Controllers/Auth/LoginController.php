@@ -3,10 +3,12 @@
 namespace App\Http\Controllers\Auth;
 
 use App\Http\Controllers\Controller;
+use Illuminate\Support\Facades\RateLimiter;
 use Illuminate\Foundation\Auth\AuthenticatesUsers;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 use App\Models\Akun;
+use Illuminate\Support\Str;
 
 class LoginController extends Controller
 {
@@ -51,25 +53,35 @@ class LoginController extends Controller
         return $output;
     }
 
+    public function showLoginForm()
+    {
+        return view('login');
+    }
+
     public function login(Request $req)
     {
         $data = $this->validated($req);
+        $key = Str::lower($data['username']) . '|' . $req->ip();
+
+        if (RateLimiter::tooManyAttempts($key, 5)) {
+            $cd = RateLimiter::availableIn($key);
+            return back()->withErrors([
+                'username' => "Login dikunci untuk {$cd} detik",
+            ])->onlyInput('username');
+        }
 
         if (Auth::attempt($data)) {
+            RateLimiter::clear($key);
             $req->session()->regenerate();
             $user = Akun::where('id_akun', Auth::id())->first();
             session(['akses' => $user?->id_akses ]);
 
-            if ($user->id_akses === 1) {
-                return redirect()->intended(route('admin.pc'))
-                    ->with('success', 'Login Berhasil');
-            } else {
-                return redirect()->intended($this->redirectTo)
-                    ->with('success', 'Login Berhasil');
-            }
+            return redirect()->route($user->homeRoute())
+                ->with('success', 'Login Berhasil');
         }
+        RateLimiter::hit($key, 60);
 
-        return back()->withErrors(['username' => 'Login gagal']);
+        return back()->withErrors(['username' => 'Login gagal'])->onlyInput('username');
     }
 
     public function logout(Request $req)

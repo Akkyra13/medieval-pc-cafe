@@ -47,4 +47,18 @@ class Akun extends Authenticatable
     {
         return $this->hasMany(SesiBermain::class, 'id_akun', 'id_akun');
     }
+
+    public function homeRoute(): string //decides where to send user based on its role
+    {
+        $role = $this->id_akses;
+        if ($role === 1) {
+            return ('admin.pc');
+        } elseif ($role === 2) {
+            return ('admin.billing');
+        } elseif ($role === 3) {
+            return ('user.profile');
+        } else {
+            return ('login');
+        }
+    }
 }

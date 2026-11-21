@@ -2,8 +2,10 @@
 
 use Illuminate\Support\Facades\Route;
 use App\Http\Controllers\AuthController;
-use App\Http\Controllers\ProfileController;
 use App\Http\Controllers\Auth\LoginController;
+use App\Http\Controllers\ProfileController;
+use App\Http\Controllers\PcController;
+use App\Http\Controllers\BillingController;
 
 // Route::get('/login', function () {
 //     return view('login');
@@ -17,25 +19,31 @@ use App\Http\Controllers\Auth\LoginController;
 
 Auth::routes();
 
-Route::get('/home', [App\Http\Controllers\HomeController::class, 'index'])->name('home');
+// Route::get('/home', [App\Http\Controllers\HomeController::class, 'index'])->name('home');
 
 // user pages
 //
 //
-Route::middleware(['auth', 'role:2,3']) //checks if user is cashier or consumer
+Route::middleware(['auth', 'role:3']) //checks if user is consumer
     ->group(function () {
 
-        Route::get('/denah-pc', function () {
-            return view('user.denah-pc');
-        })->name('user.denah');
+        Route::resource('denah-pc', PcController::class)
+            ->only(['index'])->name('index', 'user.denah');
 
-        Route::get('/beli-billing', function () {
-            return view('user.beli-billing');
-        })->name('user.billing');
+        Route::resource('beli-billing', BillingController::class)
+            ->only(['index'])->name('index', 'user.billing');
 
         // Route::get('/profile', function () {
         // })->name('user.profile');
         Route::get('/profile', [ProfileController::class, 'index'])->name('user.profile');
+    });
+
+Route::middleware(['auth', 'role:2']) // checks for cashier users
+    ->group(function () {
+
+        Route::get('/admin/manajemen-billing', function () {
+            return view('admin.manajemen-billing');
+        })->name('admin.billing');
     });
 
 // admin pages

@@ -108,6 +108,26 @@
     </div>
 
     <div class="card mt-16">
+        <h3 style="margin-bottom:12px;">Ganti Password</h3>
+        <form action="{{ route('user.password.update') }}" method="POST">
+            @csrf
+            <div class="form-group">
+                <label for="current-password">Password Lama</label>
+                <input id="current-password" name="current_password" class="form-control" type="password" required>
+            </div>
+            <div class="form-group">
+                <label for="new-password">Password Baru</label>
+                <input id="new-password" name="password" class="form-control" type="password" required>
+            </div>
+            <div class="form-group">
+                <label for="new-password-confirmation">Konfirmasi Password Baru</label>
+                <input id="new-password-confirmation" name="password_confirmation" class="form-control" type="password" required>
+            </div>
+            <button class="btn btn-primary btn-sm" type="submit">Simpan Password</button>
+        </form>
+    </div>
+
+    <div class="card mt-16">
         <h3 style="margin-bottom:12px;">Riwayat Transaksi Billing</h3>
         <div class="table-wrap">
             <table>

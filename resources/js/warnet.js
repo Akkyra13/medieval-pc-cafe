@@ -46,8 +46,51 @@ function formatMinutes(mins) {
   return `${h}j ${String(m).padStart(2, "0")}m`;
 }
 
+function getResolvedDenahData() {
+  const rootEl = document.getElementById("denah-page-root");
+  let pcs = warnetStore.pcs;
+  let zones = warnetStore.zones;
+
+  if (rootEl) {
+    if (rootEl.dataset.pcs) {
+      try {
+        const parsedPcs = JSON.parse(rootEl.dataset.pcs);
+        if (Array.isArray(parsedPcs) && parsedPcs.length > 0) {
+          pcs = parsedPcs.map(pc => ({
+            id: pc.id ?? pc.id_pc ?? pc.kode_pc ?? "PC",
+            zoneId: Number(pc.zoneId ?? pc.id_zona ?? pc.zona_id ?? 1),
+            ip: pc.ip ?? pc.ip_address ?? "-",
+            status: pc.status ?? pc.status_pc ?? "Tersedia",
+            user: pc.user ?? pc.username ?? pc.id_akun ?? null
+          }));
+        }
+      } catch (_) {}
+    }
+
+    if (rootEl.dataset.zones) {
+      try {
+        const parsedZones = JSON.parse(rootEl.dataset.zones);
+        if (Array.isArray(parsedZones) && parsedZones.length > 0) {
+          zones = parsedZones.map((z, idx) => ({
+            id: Number(z.id ?? z.id_zona ?? idx + 1),
+            name: z.name ?? z.nama_zona ?? `Zona ${idx + 1}`,
+            ratePerHour: Number(z.ratePerHour ?? z.tarif_per_jam ?? z.harga_per_jam ?? 0),
+            cpu: z.cpu ?? z.spesifikasi_cpu ?? "-",
+            gpu: z.gpu ?? z.spesifikasi_gpu ?? "-",
+            ram: z.ram ?? z.spesifikasi_ram ?? "-",
+            monitor: z.monitor ?? z.spesifikasi_monitor ?? "-"
+          }));
+        }
+      } catch (_) {}
+    }
+  }
+
+  return { pcs, zones };
+}
+
 function getZoneById(id) {
-  return warnetStore.zones.find(z => z.id === Number(id)) || warnetStore.zones[0];
+  const { zones } = getResolvedDenahData();
+  return zones.find(z => z.id === Number(id)) || zones[0] || warnetStore.zones[0];
 }
 
 function getBackendProfilePayload() {
@@ -249,9 +292,11 @@ function initDenahPage() {
 }
 
 function renderDenah() {
-  const availCount = warnetStore.pcs.filter(p => p.status === "Tersedia").length;
-  const usedCount = warnetStore.pcs.filter(p => p.status === "Digunakan" || p.status === "Terkunci").length;
-  const maintCount = warnetStore.pcs.filter(p => p.status === "Maintenance").length;
+  const { pcs } = getResolvedDenahData();
+
+  const availCount = pcs.filter(p => p.status === "Tersedia").length;
+  const usedCount = pcs.filter(p => p.status === "Digunakan" || p.status === "Terkunci").length;
+  const maintCount = pcs.filter(p => p.status === "Maintenance").length;
   const summaryEl = document.getElementById("denah-summary");
   if (summaryEl) {
     summaryEl.innerHTML = `
@@ -261,7 +306,7 @@ function renderDenah() {
     `;
   }
 
-  const filtered = warnetStore.pcs.filter(pc => {
+  const filtered = pcs.filter(pc => {
     const zone = getZoneById(pc.zoneId);
     const matchZone = warnetStore.zoneFilter === "ALL" || zone.name === warnetStore.zoneFilter;
     const matchAvail = !warnetStore.onlyAvailable || pc.status === "Tersedia";

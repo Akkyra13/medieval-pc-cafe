@@ -201,14 +201,16 @@ document.addEventListener("DOMContentLoaded", function() {
   const loginForm = document.getElementById("login-form");
   if (loginForm) {
     loginForm.addEventListener("submit", function(e) {
-      e.preventDefault();
       const loginUserEl = document.getElementById("login-username");
-      const loginRoleEl = document.getElementById("login-role");
       const username = (loginUserEl ? loginUserEl.value.trim() : "") || "capuri";
-      const role = loginRoleEl ? loginRoleEl.value : "user";
+      const role = username.toLowerCase() === "admin" ? "admin" : "user";
       sessionStorage.setItem("warnet_user", username);
       sessionStorage.setItem("warnet_role", role);
-      window.location.href = role === "admin" ? "/admin/manajemen-pc" : "/denah-pc";
+
+      if (!loginForm.getAttribute("action")) {
+        e.preventDefault();
+        window.location.href = role === "admin" ? "/admin/manajemen-pc" : "/denah-pc";
+      }
     });
   }
 

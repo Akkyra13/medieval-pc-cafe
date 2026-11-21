@@ -4,27 +4,20 @@
 
 @section('content')
 <div class="login-wrapper">
-  <div class="login-card">
-    <h1>Login Member</h1>
-    <p>Masukkan akun warnet Anda</p>
-    <form id="login-form">
-      <div class="form-group">
-        <label for="login-username">Username atau ID Member</label>
-        <input id="login-username" class="form-control" type="text" placeholder="Contoh: capuri atau admin" required>
-      </div>
-      <div class="form-group">
-        <label for="login-password">Password / PIN</label>
-        <input id="login-password" class="form-control" type="password" placeholder="Masukkan password atau PIN" required>
-      </div>
-      <div class="form-group">
-        <label for="login-role">Role Akses</label>
-        <select id="login-role" class="form-control">
-          <option value="user">User (Pelanggan)</option>
-          <option value="admin">Admin</option>
-        </select>
-      </div>
-      <button class="btn btn-primary" style="width:100%" type="submit">Masuk</button>
-    </form>
-  </div>
+    <div class="login-card">
+        <h1>Login Member</h1>
+        <p>Masukkan akun warnet Anda</p>
+        <form id="login-form">
+            <div class="form-group">
+                <label for="login-username">Username atau ID Member</label>
+                <input id="login-username" class="form-control" type="text" placeholder="Contoh: capuri atau admin" required>
+            </div>
+            <div class="form-group">
+                <label for="login-password">Password / PIN</label>
+                <input id="login-password" class="form-control" type="password" placeholder="Masukkan password atau PIN" required>
+            </div>
+            <button class="btn btn-primary" style="width:100%" type="submit">Masuk</button>
+        </form>
+    </div>
 </div>
 @endsection

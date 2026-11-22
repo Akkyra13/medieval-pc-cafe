@@ -148,14 +148,21 @@ function getResolvedBillingData() {
   const rootEl =
     document.getElementById("billing-page-root") ||
     document.getElementById("admin-billing-root");
-
   const zones = normalizeZones(parseJsonAttr(rootEl, "zones", null));
   const packages = normalizeBills(
     parseJsonAttr(rootEl, "bills", null) ?? parseJsonAttr(rootEl, "packages", null)
   );
   const transactions = normalizeTransactions(parseJsonAttr(rootEl, "transactions", null));
-
   return { zones, packages, transactions };
+}
+
+function getResolvedProfileTransactions() {
+  const rootEl = document.getElementById("profile-page-root");
+  const rawTx = parseJsonAttr(rootEl, "transactions", null);
+  if (Array.isArray(rawTx) && rawTx.length > 0) {
+    return normalizeTransactions(rawTx);
+  }
+  return warnetStore.transactions;
 }
 
 function getZoneById(id) {
@@ -163,7 +170,6 @@ function getZoneById(id) {
   const billingZones = getResolvedBillingData().zones;
   const adminPcZones = getResolvedAdminPcData().zones;
   const adminAccZones = getResolvedAdminAccountData().zones;
-
   const pool = [zones, billingZones, adminPcZones, adminAccZones].find(
     list => Array.isArray(list) && list.some(z => z.id === Number(id))
   );
@@ -177,14 +183,12 @@ function getBackendProfilePayload() {
   const rootEl = document.getElementById("profile-page-root");
   let userData = window.warnetUserData || null;
   let billingData = window.warnetBillingData || null;
-
   if (rootEl) {
     const parsedUser = parseJsonAttr(rootEl, "user", null);
     const parsedBilling = parseJsonAttr(rootEl, "billing", null);
     if (parsedUser !== null) userData = parsedUser;
     if (parsedBilling !== null) billingData = parsedBilling;
   }
-
   return { userData, billingData };
 }
 
@@ -207,9 +211,7 @@ function extractQuotaFromBilling(billingData, fallbackQuota) {
     2: fallbackQuota?.[2] ?? 0,
     3: fallbackQuota?.[3] ?? 0
   };
-
   if (!billingData) return defaultQuota;
-
   if (Array.isArray(billingData)) {
     const result = { ...defaultQuota };
     billingData.forEach(item => {
@@ -222,7 +224,6 @@ function extractQuotaFromBilling(billingData, fallbackQuota) {
     });
     return result;
   }
-
   if (typeof billingData === "object") {
     return {
       1: Number(
@@ -248,16 +249,13 @@ function extractQuotaFromBilling(billingData, fallbackQuota) {
       )
     };
   }
-
   return defaultQuota;
 }
 
 function getResolvedProfileMember() {
   const { userData: backendUser, billingData: backendBilling } = getBackendProfilePayload();
   const fallbackMember = getActiveMember();
-
   if (!backendUser && !fallbackMember) return null;
-
   return {
     id: backendUser?.id_akun ?? backendUser?.id ?? fallbackMember?.id ?? "-",
     username: backendUser?.username ?? fallbackMember?.username ?? "member",
@@ -298,13 +296,11 @@ function closeModal() {
 document.addEventListener("DOMContentLoaded", function() {
   const cancelBtn = document.getElementById("modal-cancel");
   if (cancelBtn) cancelBtn.addEventListener("click", closeModal);
-
   const sess = getCurrentSession();
   const sessInfo = document.getElementById("session-info");
   if (sessInfo) {
     sessInfo.textContent = sess.role === "admin" ? `Admin (${sess.username})` : `Member (${sess.username})`;
   }
-
   const logoutBtn = document.getElementById("logout-btn");
   const logoutForm = document.getElementById("logout-form");
   if (logoutBtn && logoutForm) {
@@ -314,7 +310,6 @@ document.addEventListener("DOMContentLoaded", function() {
       logoutForm.submit();
     });
   }
-
   const loginForm = document.getElementById("login-form");
   if (loginForm) {
     loginForm.addEventListener("submit", function(e) {
@@ -323,14 +318,12 @@ document.addEventListener("DOMContentLoaded", function() {
       const role = username.toLowerCase() === "admin" ? "admin" : "user";
       sessionStorage.setItem("warnet_user", username);
       sessionStorage.setItem("warnet_role", role);
-
       if (!loginForm.getAttribute("action")) {
         e.preventDefault();
         window.location.href = role === "admin" ? "/admin/manajemen-pc" : "/denah-pc";
       }
     });
   }
-
   if (document.getElementById("denah-grid")) initDenahPage();
   if (document.getElementById("billing-zones")) initBillingPage();
   if (document.getElementById("quota-commoner")) initProfilePage();
@@ -349,12 +342,10 @@ function initDenahPage() {
       });
       btn.classList.remove("btn-secondary");
       btn.classList.add("btn-primary");
-
       warnetStore.zoneFilter = btn.dataset.zoneFilter;
       renderDenah();
     });
   });
-
   const onlyAvail = document.getElementById("only-available-check");
   if (onlyAvail) {
     onlyAvail.addEventListener("change", e => {
@@ -367,7 +358,6 @@ function initDenahPage() {
 
 function renderDenah() {
   const { pcs } = getResolvedDenahData();
-
   const availCount = pcs.filter(p => String(p.status).toLowerCase() === "tersedia").length;
   const usedCount = pcs.filter(p => ["digunakan", "terkunci"].includes(String(p.status).toLowerCase())).length;
   const maintCount = pcs.filter(p => String(p.status).toLowerCase() === "maintenance").length;
@@ -379,14 +369,12 @@ function renderDenah() {
       <span class="badge badge-red">${maintCount} Maintenance</span>
     `;
   }
-
   const filtered = pcs.filter(pc => {
     const zone = getZoneById(pc.zoneId);
     const matchZone = warnetStore.zoneFilter === "ALL" || zone.name === warnetStore.zoneFilter;
     const matchAvail = !warnetStore.onlyAvailable || String(pc.status).toLowerCase() === "tersedia";
     return matchZone && matchAvail;
   });
-
   const gridEl = document.getElementById("denah-grid");
   if (gridEl) {
     gridEl.innerHTML = filtered.map(pc => {
@@ -415,7 +403,6 @@ function renderDenah() {
 function getOrderDetails() {
   const { zones, packages } = getResolvedBillingData();
   const zone = zones.find(z => z.id === Number(warnetStore.selectedZoneId)) || zones[0] || warnetStore.zones[0];
-
   if (warnetStore.useCustomHours) {
     return {
       zone,
@@ -425,14 +412,12 @@ function getOrderDetails() {
       minutes: warnetStore.customHours * 60
     };
   }
-
   const activePkgs = packages.filter(p => p.active);
   const pkg =
     activePkgs.find(p => p.id === Number(warnetStore.selectedPackageId)) ||
     activePkgs[0] ||
     packages[0] ||
     warnetStore.packages[0];
-
   return {
     zone,
     pkg,
@@ -451,13 +436,11 @@ function initBillingPage() {
   if (activePkgs.length > 0 && !activePkgs.some(p => p.id === Number(warnetStore.selectedPackageId))) {
     warnetStore.selectedPackageId = activePkgs[0].id;
   }
-
   const minusBtn = document.getElementById("custom-minus");
   const plusBtn = document.getElementById("custom-plus");
   const useCustomBtn = document.getElementById("use-custom-btn");
   const payBtn = document.getElementById("pay-billing-btn");
   const billingForm = payBtn ? payBtn.closest("form") : null;
-
   if (minusBtn) {
     minusBtn.addEventListener("click", () => {
       if (warnetStore.customHours > 1) warnetStore.customHours -= 1;
@@ -507,7 +490,6 @@ function syncBillingHiddenInputs() {
   const pkgInput = document.getElementById("billing-package-id");
   const hoursInput = document.getElementById("billing-custom-hours");
   const useCustomInput = document.getElementById("billing-use-custom");
-
   if (zoneInput) zoneInput.value = order.zone.id;
   if (pkgInput) pkgInput.value = warnetStore.useCustomHours || !order.pkg ? "" : order.pkg.id;
   if (hoursInput) hoursInput.value = warnetStore.useCustomHours ? warnetStore.customHours : (order.pkg?.hours || 1);
@@ -516,7 +498,6 @@ function syncBillingHiddenInputs() {
 
 function renderBilling() {
   const { zones, packages } = getResolvedBillingData();
-
   const zonesEl = document.getElementById("billing-zones");
   if (zonesEl) {
     zonesEl.innerHTML = zones.map(z => `
@@ -527,7 +508,6 @@ function renderBilling() {
       </div>
     `).join("");
   }
-
   const pkgsEl = document.getElementById("billing-packages");
   if (pkgsEl) {
     pkgsEl.innerHTML = packages.filter(p => p.active).map(p => {
@@ -541,17 +521,14 @@ function renderBilling() {
       `;
     }).join("");
   }
-
   const customHoursEl = document.getElementById("custom-hours");
   if (customHoursEl) customHoursEl.textContent = `${warnetStore.customHours} Jam`;
-
   document.querySelectorAll("[data-select-zone]").forEach(el => {
     el.addEventListener("click", () => {
       warnetStore.selectedZoneId = Number(el.dataset.selectZone);
       renderBilling();
     });
   });
-
   document.querySelectorAll("[data-select-pkg]").forEach(el => {
     el.addEventListener("click", () => {
       warnetStore.useCustomHours = false;
@@ -559,7 +536,6 @@ function renderBilling() {
       renderBilling();
     });
   });
-
   const order = getOrderDetails();
   const sumZoneEl = document.getElementById("summary-zone");
   const sumPkgEl = document.getElementById("summary-package");
@@ -567,7 +543,6 @@ function renderBilling() {
   if (sumZoneEl) sumZoneEl.textContent = order.zone.name;
   if (sumPkgEl) sumPkgEl.textContent = order.label;
   if (sumTotalEl) sumTotalEl.textContent = formatRupiah(order.total);
-
   syncBillingHiddenInputs();
 }
 
@@ -591,11 +566,10 @@ function initProfilePage() {
 function renderProfile() {
   const member = getResolvedProfileMember();
   if (!member) return;
-
+  const { pcs } = getResolvedDenahData();
   const activePcObj = member.activePc
-    ? warnetStore.pcs.find(p => p.id === member.activePc)
+    ? pcs.find(p => p.id === member.activePc)
     : null;
-
   const profileNameEl = document.getElementById("profile-name");
   const profileMetaEl = document.getElementById("profile-meta");
   const quotaCommonerEl = document.getElementById("quota-commoner");
@@ -603,13 +577,11 @@ function renderProfile() {
   const quotaRoyaltyEl = document.getElementById("quota-royalty");
   const activeSessionEl = document.getElementById("active-session-text");
   const historyBodyEl = document.getElementById("user-history-body");
-
   if (profileNameEl) profileNameEl.textContent = member.name;
   if (profileMetaEl) profileMetaEl.textContent = `@${member.username} • ID: ${member.id} • ${member.phone}`;
   if (quotaCommonerEl) quotaCommonerEl.textContent = formatMinutes(member.quota[1]);
   if (quotaNobleEl) quotaNobleEl.textContent = formatMinutes(member.quota[2]);
   if (quotaRoyaltyEl) quotaRoyaltyEl.textContent = formatMinutes(member.quota[3]);
-
   if (activeSessionEl) {
     if (!member.activePc) {
       activeSessionEl.textContent = "Tidak ada sesi aktif";
@@ -619,9 +591,11 @@ function renderProfile() {
       activeSessionEl.textContent = `Sedang terhubung di unit ${member.activePc}`;
     }
   }
-
   if (historyBodyEl) {
-    const userTx = warnetStore.transactions.filter(t => t.member === member.username);
+    const allTx = getResolvedProfileTransactions();
+    const userTx = allTx.filter(
+      t => String(t.member).toLowerCase() === String(member.username).toLowerCase()
+    );
     if (userTx.length === 0) {
       historyBodyEl.innerHTML = `<tr><td colspan="5" class="muted">Belum ada transaksi billing</td></tr>`;
     } else {
@@ -642,7 +616,6 @@ function initAdminPcPage() {
   const searchEl = document.getElementById("admin-pc-search");
   const statusEl = document.getElementById("admin-pc-status");
   const addBtn = document.getElementById("open-add-pc-btn");
-
   if (searchEl) searchEl.addEventListener("input", renderAdminPcStatsOnly);
   if (statusEl) statusEl.addEventListener("change", renderAdminPcStatsOnly);
   if (addBtn) {
@@ -675,7 +648,6 @@ function renderAdminPcStatsOnly() {
   const used = pcs.filter(p => ["digunakan", "terkunci"].includes(String(p.status).toLowerCase())).length;
   const avail = pcs.filter(p => String(p.status).toLowerCase() === "tersedia").length;
   const maint = pcs.filter(p => String(p.status).toLowerCase() === "maintenance").length;
-
   const statsEl = document.getElementById("admin-pc-stats");
   if (statsEl) {
     statsEl.innerHTML = `
@@ -685,7 +657,6 @@ function renderAdminPcStatsOnly() {
       <div class="card"><div class="muted">Maintenance</div><div class="stat-val">${maint} Unit</div></div>
     `;
   }
-
   const searchEl = document.getElementById("admin-pc-search");
   const statusEl = document.getElementById("admin-pc-status");
   const q = searchEl ? searchEl.value.trim().toLowerCase() : "";
@@ -749,7 +720,6 @@ function renderAdminAccounts() {
 function initAdminBillingPage() {
   const addZoneBtn = document.getElementById("open-add-zone-btn");
   const addPkgBtn = document.getElementById("open-add-package-btn");
-
   if (addZoneBtn) {
     addZoneBtn.addEventListener("click", () => {
       openModal("Tambah Zona Baru", `
@@ -770,7 +740,6 @@ function initAdminBillingPage() {
       });
     });
   }
-
   if (addPkgBtn) {
     addPkgBtn.addEventListener("click", () => {
       const { zones } = getResolvedBillingData();
@@ -794,7 +763,6 @@ function initAdminBillingPage() {
       });
     });
   }
-
   renderAdminBilling();
 }
 
@@ -826,7 +794,6 @@ window.deletePackage = function(pkgId) {
 
 function renderAdminBilling() {
   const { zones, packages, transactions } = getResolvedBillingData();
-
   const zoneCardsEl = document.getElementById("admin-zone-cards");
   if (zoneCardsEl) {
     zoneCardsEl.innerHTML = zones.map(z => `
@@ -840,7 +807,6 @@ function renderAdminBilling() {
       </div>
     `).join("");
   }
-
   const pkgBodyEl = document.getElementById("admin-package-body");
   if (pkgBodyEl) {
     pkgBodyEl.innerHTML = packages.map(p => {
@@ -860,18 +826,21 @@ function renderAdminBilling() {
       `;
     }).join("");
   }
-
   const txBodyEl = document.getElementById("admin-tx-body");
   if (txBodyEl) {
-    txBodyEl.innerHTML = transactions.map(t => `
-      <tr>
-        <td>${t.id}</td>
-        <td>${t.member}</td>
-        <td>${t.time}</td>
-        <td>${t.label}</td>
-        <td>${t.method}</td>
-        <td>${formatRupiah(t.amount)}</td>
-      </tr>
-    `).join("");
+    if (!Array.isArray(transactions) || transactions.length === 0) {
+      txBodyEl.innerHTML = `<tr><td colspan="6" class="muted">Belum ada transaksi billing</td></tr>`;
+    } else {
+      txBodyEl.innerHTML = transactions.map(t => `
+        <tr>
+          <td>${t.id}</td>
+          <td>${t.member}</td>
+          <td>${t.time}</td>
+          <td>${t.label}</td>
+          <td>${t.method}</td>
+          <td>${formatRupiah(t.amount)}</td>
+        </tr>
+      `).join("");
+    }
   }
 }

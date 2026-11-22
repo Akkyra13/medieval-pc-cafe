@@ -5,7 +5,7 @@
 @section('content')
 @include('partials.navbar-user')
 @php
-    $billsList = $bills ?? collect();
+    $billsList = $bills ?? ($packages ?? collect());
     $zonesList = $zones ?? collect();
 @endphp
 <main

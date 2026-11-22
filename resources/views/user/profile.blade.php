@@ -8,6 +8,7 @@
 @php
     $userObj = $user ?? null;
     $billingObj = $billing ?? null;
+    $transactionsList = $transactions ?? ($riwayatTransaksi ?? ($userTransactions ?? collect()));
 
     $formatJamMenit = function ($menit) {
         $totalMenit = max(0, (int) ($menit ?? 0));
@@ -65,6 +66,7 @@
     class="container"
     data-user='@json($userObj)'
     data-billing='@json($billingObj)'
+    data-transactions='@json($transactionsList)'
 >
     <div class="section-header">
         <div>

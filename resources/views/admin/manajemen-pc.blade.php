@@ -7,8 +7,14 @@
 @php
     $pcsList = $pcs ?? collect();
     $zonesList = $zones ?? collect();
+    $statusOptions = $pcStatuses ?? ['Tersedia', 'Digunakan', 'Terkunci', 'Maintenance'];
 @endphp
-<main class="container">
+<main
+    id="admin-pc-root"
+    class="container"
+    data-pcs='@json($pcsList)'
+    data-zones='@json($zonesList)'
+>
     <div class="section-header">
         <div>
             <div class="section-title">Manajemen Komputer & Status Sesi</div>
@@ -54,11 +60,10 @@
                 </div>
                 <div class="form-group">
                     <label for="pc-status-input">Status</label>
-                    <select id="pc-status-input" name="status_pc" class="form-control">
-                        <option value="Tersedia" {{ old('status') === 'Tersedia' ? 'selected' : '' }}>Tersedia</option>
-                        <option value="Digunakan" {{ old('status') === 'Digunakan' ? 'selected' : '' }}>Digunakan</option>
-                        <option value="Terkunci" {{ old('status') === 'Terkunci' ? 'selected' : '' }}>Terkunci</option>
-                        <option value="Maintenance" {{ old('status') === 'Maintenance' ? 'selected' : '' }}>Maintenance</option>
+                    <select id="pc-status-input" name="status" class="form-control">
+                        @foreach ($statusOptions as $stVal)
+                            <option value="{{ $stVal }}" {{ (string) old('status') === (string) $stVal ? 'selected' : '' }}>{{ $stVal }}</option>
+                        @endforeach
                     </select>
                     @error('status_pc') <small>{{ $message }}</small> @enderror
                 </div>
@@ -72,10 +77,9 @@
             <input id="admin-pc-search" class="form-control" type="text" placeholder="Cari ID PC, IP, atau user...">
             <select id="admin-pc-status" class="form-control" style="max-width:220px;">
                 <option value="ALL">Semua Status</option>
-                <option value="Tersedia">Tersedia</option>
-                <option value="Digunakan">Digunakan</option>
-                <option value="Terkunci">Terkunci</option>
-                <option value="Maintenance">Maintenance</option>
+                @foreach ($statusOptions as $stVal)
+                    <option value="{{ $stVal }}">{{ $stVal }}</option>
+                @endforeach
             </select>
         </div>
 
@@ -88,7 +92,7 @@
                         <th>IP Address</th>
                         <th>Status</th>
                         <th>User Aktif</th>
-                        <th>Update & Aksi</th>
+                        <th>Update & Hapus</th>
                     </tr>
                 </thead>
                 <tbody id="admin-pc-body">
@@ -128,10 +132,9 @@
                                     </select>
                                     <input name="ip_address" class="form-control" type="text" value="{{ $pcIp }}" style="width:140px;" required>
                                     <select name="status" class="form-control" style="width:auto;">
-                                        <option value="Tersedia" {{ $pcStatus === 'Tersedia' ? 'selected' : '' }}>Tersedia</option>
-                                        <option value="Digunakan" {{ $pcStatus === 'Digunakan' ? 'selected' : '' }}>Digunakan</option>
-                                        <option value="Terkunci" {{ $pcStatus === 'Terkunci' ? 'selected' : '' }}>Terkunci</option>
-                                        <option value="Maintenance" {{ $pcStatus === 'Maintenance' ? 'selected' : '' }}>Maintenance</option>
+                                        @foreach ($statusOptions as $stVal)
+                                            <option value="{{ $stVal }}" {{ (string) $pcStatus === (string) $stVal ? 'selected' : '' }}>{{ $stVal }}</option>
+                                        @endforeach
                                     </select>
                                     <button class="btn btn-secondary btn-sm" type="submit">Update</button>
                                 </form>

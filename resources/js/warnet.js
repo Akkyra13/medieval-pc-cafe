@@ -46,51 +46,131 @@ function formatMinutes(mins) {
   return `${h}j ${String(m).padStart(2, "0")}m`;
 }
 
+function parseJsonAttr(el, attrName, fallback = null) {
+  if (!el || !el.dataset || !el.dataset[attrName]) return fallback;
+  try {
+    const parsed = JSON.parse(el.dataset[attrName]);
+    return parsed ?? fallback;
+  } catch (_) {
+    return fallback;
+  }
+}
+
+function normalizeZones(rawZones) {
+  if (!Array.isArray(rawZones) || rawZones.length === 0) return warnetStore.zones;
+  return rawZones.map((z, idx) => ({
+    id: Number(z.id ?? z.id_zona ?? z.zona_id ?? idx + 1),
+    name: z.name ?? z.nama_zona ?? z.nama ?? `Zona ${idx + 1}`,
+    ratePerHour: Number(z.ratePerHour ?? z.tarif_per_jam ?? z.harga_per_jam ?? z.tarif ?? 0),
+    cpu: z.cpu ?? z.spesifikasi_cpu ?? "-",
+    gpu: z.gpu ?? z.spesifikasi_gpu ?? "-",
+    ram: z.ram ?? z.spesifikasi_ram ?? "-",
+    monitor: z.monitor ?? z.spesifikasi_monitor ?? "-"
+  }));
+}
+
+function normalizePcs(rawPcs) {
+  if (!Array.isArray(rawPcs) || rawPcs.length === 0) return warnetStore.pcs;
+  return rawPcs.map(pc => ({
+    id: pc.id ?? pc.id_pc ?? pc.kode_pc ?? "PC",
+    zoneId: Number(pc.zoneId ?? pc.id_zona ?? pc.zona_id ?? 1),
+    ip: pc.ip ?? pc.ip_address ?? "-",
+    status: pc.status ?? pc.status_pc ?? "Tersedia",
+    user: pc.user ?? pc.username ?? pc.id_akun ?? null
+  }));
+}
+
+function normalizeAccounts(rawUsers) {
+  if (!Array.isArray(rawUsers) || rawUsers.length === 0) return warnetStore.accounts;
+  return rawUsers.map(u => ({
+    id: u.id ?? u.id_akun ?? "-",
+    username: u.username ?? "-",
+    name: u.name ?? u.nama ?? "-",
+    phone: u.phone ?? u.no_hp ?? u.telepon ?? "-",
+    status: u.status ?? "Aktif",
+    quota: {
+      1: Number(u.quota?.[1] ?? u.commoner ?? u.sisa_commoner ?? 0),
+      2: Number(u.quota?.[2] ?? u.noble ?? u.sisa_noble ?? 0),
+      3: Number(u.quota?.[3] ?? u.royalty ?? u.sisa_royalty ?? 0)
+    },
+    activePc: u.activePc ?? u.active_pc ?? null
+  }));
+}
+
+function normalizeBills(rawBills) {
+  if (!Array.isArray(rawBills) || rawBills.length === 0) return warnetStore.packages;
+  return rawBills.map((p, idx) => ({
+    id: Number(p.id ?? p.id_paket ?? p.id_bill ?? idx + 1),
+    zoneId: Number(p.zoneId ?? p.id_zona ?? p.zona_id ?? 1),
+    name: p.name ?? p.nama_paket ?? p.nama_bill ?? p.nama ?? `Paket ${idx + 1}`,
+    hours: Number(p.hours ?? p.durasi_jam ?? p.jam ?? 1),
+    price: Number(p.price ?? p.harga ?? p.tarif ?? 0),
+    active: p.active !== undefined ? Boolean(p.active) : true
+  }));
+}
+
+function normalizeTransactions(rawTx) {
+  if (!Array.isArray(rawTx) || rawTx.length === 0) return warnetStore.transactions;
+  return rawTx.map(t => ({
+    id: t.id ?? t.id_transaksi ?? "-",
+    member: t.member ?? t.username ?? t.id_akun ?? "-",
+    time: t.time ?? t.created_at ?? t.tanggal ?? "-",
+    label: t.label ?? t.keterangan ?? t.nama_paket ?? "-",
+    method: t.method ?? t.metode_pembayaran ?? "-",
+    amount: Number(t.amount ?? t.nominal ?? t.total ?? 0)
+  }));
+}
+
 function getResolvedDenahData() {
   const rootEl = document.getElementById("denah-page-root");
-  let pcs = warnetStore.pcs;
-  let zones = warnetStore.zones;
-
-  if (rootEl) {
-    if (rootEl.dataset.pcs) {
-      try {
-        const parsedPcs = JSON.parse(rootEl.dataset.pcs);
-        if (Array.isArray(parsedPcs) && parsedPcs.length > 0) {
-          pcs = parsedPcs.map(pc => ({
-            id: pc.id ?? pc.id_pc ?? pc.kode_pc ?? "PC",
-            zoneId: Number(pc.zoneId ?? pc.id_zona ?? pc.zona_id ?? 1),
-            ip: pc.ip ?? pc.ip_address ?? "-",
-            status: pc.status ?? pc.status_pc ?? "Tersedia",
-            user: pc.user ?? pc.username ?? pc.id_akun ?? null
-          }));
-        }
-      } catch (_) {}
-    }
-
-    if (rootEl.dataset.zones) {
-      try {
-        const parsedZones = JSON.parse(rootEl.dataset.zones);
-        if (Array.isArray(parsedZones) && parsedZones.length > 0) {
-          zones = parsedZones.map((z, idx) => ({
-            id: Number(z.id ?? z.id_zona ?? idx + 1),
-            name: z.name ?? z.nama_zona ?? `Zona ${idx + 1}`,
-            ratePerHour: Number(z.ratePerHour ?? z.tarif_per_jam ?? z.harga_per_jam ?? 0),
-            cpu: z.cpu ?? z.spesifikasi_cpu ?? "-",
-            gpu: z.gpu ?? z.spesifikasi_gpu ?? "-",
-            ram: z.ram ?? z.spesifikasi_ram ?? "-",
-            monitor: z.monitor ?? z.spesifikasi_monitor ?? "-"
-          }));
-        }
-      } catch (_) {}
-    }
-  }
-
+  const pcs = normalizePcs(parseJsonAttr(rootEl, "pcs", null));
+  const zones = normalizeZones(parseJsonAttr(rootEl, "zones", null));
   return { pcs, zones };
+}
+
+function getResolvedAdminPcData() {
+  const rootEl = document.getElementById("admin-pc-root");
+  const pcs = normalizePcs(parseJsonAttr(rootEl, "pcs", null));
+  const zones = normalizeZones(parseJsonAttr(rootEl, "zones", null));
+  return { pcs, zones };
+}
+
+function getResolvedAdminAccountData() {
+  const rootEl = document.getElementById("admin-account-root");
+  const accounts = normalizeAccounts(
+    parseJsonAttr(rootEl, "users", null) ?? parseJsonAttr(rootEl, "accounts", null)
+  );
+  const zones = normalizeZones(parseJsonAttr(rootEl, "zones", null));
+  return { accounts, zones };
+}
+
+function getResolvedBillingData() {
+  const rootEl =
+    document.getElementById("billing-page-root") ||
+    document.getElementById("admin-billing-root");
+
+  const zones = normalizeZones(parseJsonAttr(rootEl, "zones", null));
+  const packages = normalizeBills(
+    parseJsonAttr(rootEl, "bills", null) ?? parseJsonAttr(rootEl, "packages", null)
+  );
+  const transactions = normalizeTransactions(parseJsonAttr(rootEl, "transactions", null));
+
+  return { zones, packages, transactions };
 }
 
 function getZoneById(id) {
   const { zones } = getResolvedDenahData();
-  return zones.find(z => z.id === Number(id)) || zones[0] || warnetStore.zones[0];
+  const billingZones = getResolvedBillingData().zones;
+  const adminPcZones = getResolvedAdminPcData().zones;
+  const adminAccZones = getResolvedAdminAccountData().zones;
+
+  const pool = [zones, billingZones, adminPcZones, adminAccZones].find(
+    list => Array.isArray(list) && list.some(z => z.id === Number(id))
+  );
+  if (pool) {
+    return pool.find(z => z.id === Number(id)) || pool[0];
+  }
+  return zones[0] || warnetStore.zones[0];
 }
 
 function getBackendProfilePayload() {
@@ -99,16 +179,10 @@ function getBackendProfilePayload() {
   let billingData = window.warnetBillingData || null;
 
   if (rootEl) {
-    if (rootEl.dataset.user) {
-      try {
-        userData = JSON.parse(rootEl.dataset.user);
-      } catch (_) {}
-    }
-    if (rootEl.dataset.billing) {
-      try {
-        billingData = JSON.parse(rootEl.dataset.billing);
-      } catch (_) {}
-    }
+    const parsedUser = parseJsonAttr(rootEl, "user", null);
+    const parsedBilling = parseJsonAttr(rootEl, "billing", null);
+    if (parsedUser !== null) userData = parsedUser;
+    if (parsedBilling !== null) billingData = parsedBilling;
   }
 
   return { userData, billingData };
@@ -294,9 +368,9 @@ function initDenahPage() {
 function renderDenah() {
   const { pcs } = getResolvedDenahData();
 
-  const availCount = pcs.filter(p => p.status === "Tersedia").length;
-  const usedCount = pcs.filter(p => p.status === "Digunakan" || p.status === "Terkunci").length;
-  const maintCount = pcs.filter(p => p.status === "Maintenance").length;
+  const availCount = pcs.filter(p => String(p.status).toLowerCase() === "tersedia").length;
+  const usedCount = pcs.filter(p => ["digunakan", "terkunci"].includes(String(p.status).toLowerCase())).length;
+  const maintCount = pcs.filter(p => String(p.status).toLowerCase() === "maintenance").length;
   const summaryEl = document.getElementById("denah-summary");
   if (summaryEl) {
     summaryEl.innerHTML = `
@@ -309,7 +383,7 @@ function renderDenah() {
   const filtered = pcs.filter(pc => {
     const zone = getZoneById(pc.zoneId);
     const matchZone = warnetStore.zoneFilter === "ALL" || zone.name === warnetStore.zoneFilter;
-    const matchAvail = !warnetStore.onlyAvailable || pc.status === "Tersedia";
+    const matchAvail = !warnetStore.onlyAvailable || String(pc.status).toLowerCase() === "tersedia";
     return matchZone && matchAvail;
   });
 
@@ -317,9 +391,10 @@ function renderDenah() {
   if (gridEl) {
     gridEl.innerHTML = filtered.map(pc => {
       const zone = getZoneById(pc.zoneId);
-      const badgeClass = pc.status === "Tersedia"
+      const stLower = String(pc.status).toLowerCase();
+      const badgeClass = stLower === "tersedia"
         ? "badge-green"
-        : pc.status === "Digunakan" || pc.status === "Terkunci"
+        : ["digunakan", "terkunci"].includes(stLower)
           ? "badge-blue"
           : "badge-red";
       return `
@@ -338,18 +413,29 @@ function renderDenah() {
 }
 
 function getOrderDetails() {
-  const zone = getZoneById(warnetStore.selectedZoneId);
+  const { zones, packages } = getResolvedBillingData();
+  const zone = zones.find(z => z.id === Number(warnetStore.selectedZoneId)) || zones[0] || warnetStore.zones[0];
+
   if (warnetStore.useCustomHours) {
     return {
       zone,
+      pkg: null,
       label: `${zone.name} - Top-up (${warnetStore.customHours} Jam)`,
       total: zone.ratePerHour * warnetStore.customHours,
       minutes: warnetStore.customHours * 60
     };
   }
-  const pkg = warnetStore.packages.find(p => p.id === warnetStore.selectedPackageId) || warnetStore.packages[0];
+
+  const activePkgs = packages.filter(p => p.active);
+  const pkg =
+    activePkgs.find(p => p.id === Number(warnetStore.selectedPackageId)) ||
+    activePkgs[0] ||
+    packages[0] ||
+    warnetStore.packages[0];
+
   return {
     zone,
+    pkg,
     label: `${zone.name} - ${pkg.name} (${pkg.hours} Jam)`,
     total: pkg.price,
     minutes: pkg.hours * 60
@@ -357,10 +443,20 @@ function getOrderDetails() {
 }
 
 function initBillingPage() {
+  const { zones, packages } = getResolvedBillingData();
+  if (zones.length > 0 && !zones.some(z => z.id === Number(warnetStore.selectedZoneId))) {
+    warnetStore.selectedZoneId = zones[0].id;
+  }
+  const activePkgs = packages.filter(p => p.active);
+  if (activePkgs.length > 0 && !activePkgs.some(p => p.id === Number(warnetStore.selectedPackageId))) {
+    warnetStore.selectedPackageId = activePkgs[0].id;
+  }
+
   const minusBtn = document.getElementById("custom-minus");
   const plusBtn = document.getElementById("custom-plus");
   const useCustomBtn = document.getElementById("use-custom-btn");
   const payBtn = document.getElementById("pay-billing-btn");
+  const billingForm = payBtn ? payBtn.closest("form") : null;
 
   if (minusBtn) {
     minusBtn.addEventListener("click", () => {
@@ -381,31 +477,50 @@ function initBillingPage() {
     });
   }
   if (payBtn) {
-    payBtn.addEventListener("click", () => {
-      const member = getActiveMember();
-      const order = getOrderDetails();
-      const methodEl = document.getElementById("payment-method");
-      const method = methodEl ? methodEl.value : "QRIS Dinamis";
-      member.quota[order.zone.id] = (member.quota[order.zone.id] || 0) + order.minutes;
-      warnetStore.transactions.unshift({
-        id: "TX-" + Math.floor(100000 + Math.random() * 900000),
-        member: member.username,
-        time: "Baru saja",
-        label: order.label,
-        method,
-        amount: order.total
-      });
-      window.location.href = "/profile";
+    payBtn.addEventListener("click", (e) => {
+      syncBillingHiddenInputs();
+      if (!billingForm || !billingForm.getAttribute("action")) {
+        if (e && typeof e.preventDefault === "function") e.preventDefault();
+        const member = getActiveMember();
+        const order = getOrderDetails();
+        const methodEl = document.getElementById("payment-method");
+        const method = methodEl ? methodEl.value : "QRIS Dinamis";
+        member.quota[order.zone.id] = (member.quota[order.zone.id] || 0) + order.minutes;
+        warnetStore.transactions.unshift({
+          id: "TX-" + Math.floor(100000 + Math.random() * 900000),
+          member: member.username,
+          time: "Baru saja",
+          label: order.label,
+          method,
+          amount: order.total
+        });
+        window.location.href = "/profile";
+      }
     });
   }
   renderBilling();
 }
 
+function syncBillingHiddenInputs() {
+  const order = getOrderDetails();
+  const zoneInput = document.getElementById("billing-zone-id");
+  const pkgInput = document.getElementById("billing-package-id");
+  const hoursInput = document.getElementById("billing-custom-hours");
+  const useCustomInput = document.getElementById("billing-use-custom");
+
+  if (zoneInput) zoneInput.value = order.zone.id;
+  if (pkgInput) pkgInput.value = warnetStore.useCustomHours || !order.pkg ? "" : order.pkg.id;
+  if (hoursInput) hoursInput.value = warnetStore.useCustomHours ? warnetStore.customHours : (order.pkg?.hours || 1);
+  if (useCustomInput) useCustomInput.value = warnetStore.useCustomHours ? "1" : "0";
+}
+
 function renderBilling() {
+  const { zones, packages } = getResolvedBillingData();
+
   const zonesEl = document.getElementById("billing-zones");
   if (zonesEl) {
-    zonesEl.innerHTML = warnetStore.zones.map(z => `
-      <div class="card selectable ${z.id === warnetStore.selectedZoneId ? "selected" : ""}" data-select-zone="${z.id}">
+    zonesEl.innerHTML = zones.map(z => `
+      <div class="card selectable ${z.id === Number(warnetStore.selectedZoneId) ? "selected" : ""}" data-select-zone="${z.id}">
         <div style="font-weight:bold;">${z.name}</div>
         <div style="color:#22d3ee; font-weight:bold; margin-top:6px;">${formatRupiah(z.ratePerHour)} / jam</div>
         <div class="muted mt-12">${z.cpu}</div>
@@ -415,8 +530,8 @@ function renderBilling() {
 
   const pkgsEl = document.getElementById("billing-packages");
   if (pkgsEl) {
-    pkgsEl.innerHTML = warnetStore.packages.filter(p => p.active).map(p => {
-      const isSelected = !warnetStore.useCustomHours && p.id === warnetStore.selectedPackageId;
+    pkgsEl.innerHTML = packages.filter(p => p.active).map(p => {
+      const isSelected = !warnetStore.useCustomHours && p.id === Number(warnetStore.selectedPackageId);
       return `
         <div class="card selectable ${isSelected ? "selected" : ""}" data-select-pkg="${p.id}">
           <div style="font-weight:bold;">${p.name}</div>
@@ -452,6 +567,8 @@ function renderBilling() {
   if (sumZoneEl) sumZoneEl.textContent = order.zone.name;
   if (sumPkgEl) sumPkgEl.textContent = order.label;
   if (sumTotalEl) sumTotalEl.textContent = formatRupiah(order.total);
+
+  syncBillingHiddenInputs();
 }
 
 function initProfilePage() {
@@ -496,7 +613,7 @@ function renderProfile() {
   if (activeSessionEl) {
     if (!member.activePc) {
       activeSessionEl.textContent = "Tidak ada sesi aktif";
-    } else if (activePcObj && activePcObj.status === "Terkunci") {
+    } else if (activePcObj && String(activePcObj.status).toLowerCase() === "terkunci") {
       activeSessionEl.textContent = `Unit ${member.activePc} sedang terkunci`;
     } else {
       activeSessionEl.textContent = `Sedang terhubung di unit ${member.activePc}`;
@@ -526,11 +643,12 @@ function initAdminPcPage() {
   const statusEl = document.getElementById("admin-pc-status");
   const addBtn = document.getElementById("open-add-pc-btn");
 
-  if (searchEl) searchEl.addEventListener("input", renderAdminPc);
-  if (statusEl) statusEl.addEventListener("change", renderAdminPc);
+  if (searchEl) searchEl.addEventListener("input", renderAdminPcStatsOnly);
+  if (statusEl) statusEl.addEventListener("change", renderAdminPcStatsOnly);
   if (addBtn) {
     addBtn.addEventListener("click", () => {
-      const zoneOpts = warnetStore.zones.map(z => `<option value="${z.id}">${z.name}</option>`).join("");
+      const { zones } = getResolvedAdminPcData();
+      const zoneOpts = zones.map(z => `<option value="${z.id}">${z.name}</option>`).join("");
       openModal("Tambah Komputer Baru", `
         <div class="form-group"><label>ID PC</label><input name="id" class="form-control" placeholder="PC-07" required></div>
         <div class="form-group"><label>Zona</label><select name="zoneId" class="form-control">${zoneOpts}</select></div>
@@ -548,14 +666,16 @@ function initAdminPcPage() {
       });
     });
   }
-  renderAdminPc();
+  renderAdminPcStatsOnly();
 }
 
-function renderAdminPc() {
-  const total = warnetStore.pcs.length;
-  const used = warnetStore.pcs.filter(p => p.status === "Digunakan" || p.status === "Terkunci").length;
-  const avail = warnetStore.pcs.filter(p => p.status === "Tersedia").length;
-  const maint = warnetStore.pcs.filter(p => p.status === "Maintenance").length;
+function renderAdminPcStatsOnly() {
+  const { pcs } = getResolvedAdminPcData();
+  const total = pcs.length;
+  const used = pcs.filter(p => ["digunakan", "terkunci"].includes(String(p.status).toLowerCase())).length;
+  const avail = pcs.filter(p => String(p.status).toLowerCase() === "tersedia").length;
+  const maint = pcs.filter(p => String(p.status).toLowerCase() === "maintenance").length;
+
   const statsEl = document.getElementById("admin-pc-stats");
   if (statsEl) {
     statsEl.innerHTML = `
@@ -568,55 +688,23 @@ function renderAdminPc() {
 
   const searchEl = document.getElementById("admin-pc-search");
   const statusEl = document.getElementById("admin-pc-status");
-  const q = searchEl ? searchEl.value.toLowerCase() : "";
+  const q = searchEl ? searchEl.value.trim().toLowerCase() : "";
   const st = statusEl ? statusEl.value : "ALL";
-  const rows = warnetStore.pcs.filter(pc => {
-    const matchStatus = st === "ALL" || pc.status === st;
-    const matchQuery = !q || pc.id.toLowerCase().includes(q) || pc.ip.includes(q) || (pc.user || "").toLowerCase().includes(q);
-    return matchStatus && matchQuery;
-  });
-
   const bodyEl = document.getElementById("admin-pc-body");
   if (bodyEl) {
-    bodyEl.innerHTML = rows.map(pc => {
-      const zone = getZoneById(pc.zoneId);
-      return `
-        <tr>
-          <td><strong>${pc.id}</strong></td>
-          <td>${zone.name}</td>
-          <td>${pc.ip}</td>
-          <td>${pc.status}</td>
-          <td>${pc.user || "-"}</td>
-          <td>
-            <button class="btn btn-secondary btn-sm" onclick="editPc('${pc.id}')">Edit</button>
-            <button class="btn btn-danger btn-sm" onclick="deletePc('${pc.id}')">Hapus</button>
-          </td>
-        </tr>
-      `;
-    }).join("");
+    const rows = bodyEl.querySelectorAll("tr");
+    rows.forEach(tr => {
+      const text = tr.textContent.toLowerCase();
+      const matchQuery = !q || text.includes(q);
+      const matchStatus = st === "ALL" || text.includes(String(st).toLowerCase());
+      tr.style.display = matchQuery && matchStatus ? "" : "none";
+    });
   }
 }
 
-window.editPc = function(pcId) {
-  const pc = warnetStore.pcs.find(p => p.id === pcId);
-  if (!pc) return;
-  const zoneOpts = warnetStore.zones.map(z => `<option value="${z.id}" ${z.id === pc.zoneId ? "selected" : ""}>${z.name}</option>`).join("");
-  openModal("Edit Komputer " + pc.id, `
-    <div class="form-group"><label>Zona</label><select name="zoneId" class="form-control">${zoneOpts}</select></div>
-    <div class="form-group"><label>IP Address</label><input name="ip" class="form-control" value="${pc.ip}" required></div>
-    <div class="form-group"><label>Status</label><select name="status" class="form-control"><option ${pc.status === "Tersedia" ? "selected" : ""}>Tersedia</option><option ${pc.status === "Digunakan" ? "selected" : ""}>Digunakan</option><option ${pc.status === "Terkunci" ? "selected" : ""}>Terkunci</option><option ${pc.status === "Maintenance" ? "selected" : ""}>Maintenance</option></select></div>
-  `, fd => {
-    pc.zoneId = Number(fd.get("zoneId"));
-    pc.ip = fd.get("ip").trim();
-    pc.status = fd.get("status");
-    renderAdminPc();
-  });
-};
-
-window.deletePc = function(pcId) {
-  warnetStore.pcs = warnetStore.pcs.filter(p => p.id !== pcId);
-  renderAdminPc();
-};
+function renderAdminPc() {
+  renderAdminPcStatsOnly();
+}
 
 function initAdminAccountPage() {
   const searchEl = document.getElementById("admin-account-search");
@@ -647,49 +735,16 @@ function initAdminAccountPage() {
 
 function renderAdminAccounts() {
   const searchEl = document.getElementById("admin-account-search");
-  const q = searchEl ? searchEl.value.toLowerCase() : "";
-  const list = warnetStore.accounts.filter(a =>
-    !q || a.username.toLowerCase().includes(q) || a.name.toLowerCase().includes(q) || a.id.toLowerCase().includes(q)
-  );
+  const q = searchEl ? searchEl.value.trim().toLowerCase() : "";
   const bodyEl = document.getElementById("admin-account-body");
   if (bodyEl) {
-    bodyEl.innerHTML = list.map(a => `
-      <tr>
-        <td>${a.id}</td>
-        <td><strong>${a.name}</strong><div class="muted">@${a.username}</div></td>
-        <td>${a.phone}</td>
-        <td>${formatMinutes(a.quota[1])}</td>
-        <td>${formatMinutes(a.quota[2])}</td>
-        <td>${formatMinutes(a.quota[3])}</td>
-        <td>${a.status}</td>
-        <td>
-          <button class="btn btn-primary btn-sm" onclick="topupAccount('${a.username}')">+ Billing</button>
-          <button class="btn btn-danger btn-sm" onclick="deleteAccount('${a.username}')">Hapus</button>
-        </td>
-      </tr>
-    `).join("");
+    const rows = bodyEl.querySelectorAll("tr");
+    rows.forEach(tr => {
+      const text = tr.textContent.toLowerCase();
+      tr.style.display = !q || text.includes(q) ? "" : "none";
+    });
   }
 }
-
-window.topupAccount = function(username) {
-  const acc = warnetStore.accounts.find(a => a.username === username);
-  if (!acc) return;
-  const zoneOpts = warnetStore.zones.map(z => `<option value="${z.id}">${z.name}</option>`).join("");
-  openModal("Tambah Billing - " + acc.username, `
-    <div class="form-group"><label>Zona</label><select name="zoneId" class="form-control">${zoneOpts}</select></div>
-    <div class="form-group"><label>Durasi (Jam)</label><input name="hours" type="number" min="1" value="2" class="form-control" required></div>
-  `, fd => {
-    const zId = Number(fd.get("zoneId"));
-    const hrs = Number(fd.get("hours"));
-    acc.quota[zId] = (acc.quota[zId] || 0) + hrs * 60;
-    renderAdminAccounts();
-  });
-};
-
-window.deleteAccount = function(username) {
-  warnetStore.accounts = warnetStore.accounts.filter(a => a.username !== username);
-  renderAdminAccounts();
-};
 
 function initAdminBillingPage() {
   const addZoneBtn = document.getElementById("open-add-zone-btn");
@@ -718,7 +773,8 @@ function initAdminBillingPage() {
 
   if (addPkgBtn) {
     addPkgBtn.addEventListener("click", () => {
-      const zoneOpts = warnetStore.zones.map(z => `<option value="${z.id}">${z.name}</option>`).join("");
+      const { zones } = getResolvedBillingData();
+      const zoneOpts = zones.map(z => `<option value="${z.id}">${z.name}</option>`).join("");
       openModal("Tambah Paket Billing", `
         <div class="form-group"><label>Nama Paket</label><input name="name" class="form-control" required></div>
         <div class="form-group"><label>Zona</label><select name="zoneId" class="form-control">${zoneOpts}</select></div>
@@ -769,9 +825,11 @@ window.deletePackage = function(pkgId) {
 };
 
 function renderAdminBilling() {
+  const { zones, packages, transactions } = getResolvedBillingData();
+
   const zoneCardsEl = document.getElementById("admin-zone-cards");
   if (zoneCardsEl) {
-    zoneCardsEl.innerHTML = warnetStore.zones.map(z => `
+    zoneCardsEl.innerHTML = zones.map(z => `
       <div class="card">
         <div class="row-between">
           <strong>${z.name}</strong>
@@ -785,8 +843,8 @@ function renderAdminBilling() {
 
   const pkgBodyEl = document.getElementById("admin-package-body");
   if (pkgBodyEl) {
-    pkgBodyEl.innerHTML = warnetStore.packages.map(p => {
-      const z = getZoneById(p.zoneId);
+    pkgBodyEl.innerHTML = packages.map(p => {
+      const z = zones.find(item => item.id === Number(p.zoneId)) || zones[0] || warnetStore.zones[0];
       return `
         <tr>
           <td>${p.name}</td>
@@ -805,7 +863,7 @@ function renderAdminBilling() {
 
   const txBodyEl = document.getElementById("admin-tx-body");
   if (txBodyEl) {
-    txBodyEl.innerHTML = warnetStore.transactions.map(t => `
+    txBodyEl.innerHTML = transactions.map(t => `
       <tr>
         <td>${t.id}</td>
         <td>${t.member}</td>

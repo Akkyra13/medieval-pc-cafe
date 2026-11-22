@@ -5,9 +5,9 @@
 @section('content')
 @include('partials.navbar-admin')
 @php
-    $billsList = $bills ?? collect();
+    $billsList = $bills ?? ($packages ?? collect());
     $zonesList = $zones ?? collect();
-    $transactionsList = $transactions ?? collect();
+    $transactionsList = $transactions ?? ($riwayatTransaksi ?? collect());
 @endphp
 <main
     id="admin-billing-root"

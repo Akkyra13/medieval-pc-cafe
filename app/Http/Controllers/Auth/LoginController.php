@@ -53,10 +53,10 @@ class LoginController extends Controller
         return $output;
     }
 
-    public function showLoginForm()
-    {
-        return view('login');
-    }
+    // public function showLoginForm()
+    // {
+    //     return view('auth.login');
+    // }
 
     public function login(Request $req)
     {

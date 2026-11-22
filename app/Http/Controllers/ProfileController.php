@@ -10,6 +10,15 @@ use Illuminate\Support\Facades\Auth;
 
 class ProfileController extends Controller
 {
+    protected function validated(Request $r): array
+    {
+        $const = $r->validate([
+            'current_password' => 'required|current_password',
+            'password' => 'required|min:8|confirmed',
+        ]);
+
+        return $const;
+    }
     /**
      * Display a listing of the resource.
      */
@@ -56,7 +65,14 @@ class ProfileController extends Controller
      */
     public function update(Request $request, string $id)
     {
-        //
+        $data = $this->validated($request);
+
+        $request->user()->update([
+            'password' => Hash::make($data['password']),
+        ]);
+
+        return redirect()->route('user.profile')
+            ->with('success', 'Password berhasil di perbarui');
     }
 
     /**

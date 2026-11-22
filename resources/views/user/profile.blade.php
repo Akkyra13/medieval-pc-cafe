@@ -109,7 +109,7 @@
 
     <div class="card mt-16">
         <h3 style="margin-bottom:12px;">Ganti Password</h3>
-        <form action="{{ route('user.password.update') }}" method="POST">
+        <form action="{{ route('user.password.update', auth()->id()) }}" method="POST">
             @csrf
             <div class="form-group">
                 <label for="current-password">Password Lama</label>

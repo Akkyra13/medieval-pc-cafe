@@ -36,7 +36,12 @@ Route::middleware(['auth', 'role:3']) //checks if user is consumer
 
         // Route::get('/profile', function () {
         // })->name('user.profile');
-        Route::get('/profile', [ProfileController::class, 'index'])->name('user.profile');
+        Route::resource('profile', ProfileController::class)
+            ->only(['index', 'update'])
+            ->names([
+                'index' => 'user.profile',
+                'update' => 'user.password.update',
+            ]);
     });
 
 Route::middleware(['auth', 'role:1,2']) // checks for cashier and admin users

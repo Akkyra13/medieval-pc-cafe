@@ -4,6 +4,7 @@ namespace App\Http\Controllers;
 
 use Illuminate\Http\Request;
 use App\Models\Akun;
+use App\Models\Zona;
 
 class AkunController extends Controller
 {
@@ -24,8 +25,9 @@ class AkunController extends Controller
      */
     public function index()
     {
-        $data = Akun::orderBy('id_akun')->get();
-        return view('admin.manajemen-akun', compact('data'));
+        $users = Akun::orderBy('id_akun')->get();
+        $zones = Zona::all();
+        return view('admin.manajemen-akun', compact(['users', 'zones']));
     }
 
     /**

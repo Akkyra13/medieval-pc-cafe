@@ -30,7 +30,9 @@ class PcController extends Controller
 
     public function index()
     {
-        $pcs = Pc::all();
+        $pcs = Pc::orderBy('id_zona', 'asc')
+            ->orderBy('id_pc', 'asc')
+            ->get();
         $zones = Zona::all();
 
         if (Auth::user()->id_akses === 1) {

@@ -6,6 +6,7 @@ use Illuminate\Http\Request;
 use App\Models\Pc;
 use App\Models\Zona;
 use Illuminate\Support\Facades\Auth;
+use Illuminate\Support\Facades\Hash;
 
 class PcController extends Controller
 {
@@ -98,7 +99,8 @@ class PcController extends Controller
      */
     public function destroy(string $id)
     {
-        Pc::findOrFail($id)->delete()
-            ->redirect()->route('admin.pc')->with('success', 'PC dihabus');
+        Pc::findOrFail($id)->delete();
+
+        return redirect()->route('admin.pc')->with('success', 'PC dihapus');
     }
 }

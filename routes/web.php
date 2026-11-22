@@ -17,6 +17,11 @@ use App\Http\Controllers\AkunController;
 
 // Route::view('/login', 'halaman.login')->name('login');
 // Route::post('/login', [AuthController::class, 'userAuth']);
+Route::get('/', function () {
+    return Auth::check()
+        ? redirect()->route(Auth::user()->homeRoute())
+        : redirect()->route('login');
+});
 
 Auth::routes();
 
@@ -47,9 +52,17 @@ Route::middleware(['auth', 'role:3']) //checks if user is consumer
 Route::middleware(['auth', 'role:1,2']) // checks for cashier and admin users
     ->group(function () {
 
-        Route::get('/admin/manajemen-billing', function () {
-            return view('admin.manajemen-billing');
-        })->name('admin.billing');
+        Route::resource('/admin/manajemen-billing', BillingController::class)
+            ->names([
+            'index' => 'admin.billing',
+            'store' => 'admin.billing.store',
+            'update' => 'admin.billing.update',
+            'destroy' => 'admin.billing.destroy',
+        ]);
+
+        // Route::get('/admin/manajemen-billing', function () {
+        //     return view('admin.manajemen-billing');
+        // })->name('admin.billing');
     });
 
 // admin pages
@@ -78,7 +91,7 @@ Route::middleware(['auth', 'isAdmin']) //middleware check if user is logged in a
         Route::resource('admin/manajemen-akun', AkunController::class)
             ->names([
                 'index' => 'admin.akun',
-                'show' => 'admin.akun.show',
+                'show' => 'admin.akun.topup',
                 'update' => 'admin.akun.update',
                 'store' => 'admin.akun.store',
                 'destroy' => 'admin.akun.destroy',
@@ -88,7 +101,4 @@ Route::middleware(['auth', 'isAdmin']) //middleware check if user is logged in a
         //     return view('admin.manajemen-akun');
         // })->name('admin.akun');
 
-        Route::get('/admin/manajemen-billing', function () {
-            return view('admin.manajemen-billing');
-        })->name('admin.billing');
     });

@@ -5,6 +5,7 @@ namespace App\Http\Controllers;
 use Illuminate\Http\Request;
 use App\Models\Akun;
 use App\Models\Zona;
+use Illuminate\Support\Facades\Hash;
 
 class AkunController extends Controller
 {
@@ -12,10 +13,10 @@ class AkunController extends Controller
     protected function validated(Request $r, bool $isCreate = false): array
     {
         $cons = $r->validate([
-            'username' => 'required|string|max:20|min:5|unique:akun, username',
+            'username' => 'required|string|max:20|min:5|unique:akun,username',
             'password' => 'required|min:8',
             'nama' => 'required|string|min:5',
-            'notelp' => 'nullable|string|max:20|min:5|unique:akun, username',
+            'notelp' => 'nullable|string|max:20|min:10',
         ]);
 
         return $cons;
@@ -43,9 +44,11 @@ class AkunController extends Controller
      */
     public function store(Request $request)
     {
-        $data = $this->validate($request);
+        $data = $this->validated($request);
 
-        Akun::create($data);
+        $request->user()->update([
+            'password' => Hash::make($data['password']),
+        ]);
 
         return redirect()->route('admin.akun')->with('success', 'Akun Ditambahkan');
     }
@@ -63,7 +66,9 @@ class AkunController extends Controller
      */
     public function edit(string $id)
     {
-        //
+        $data = Akun::where('id_akun', $id)->get();
+
+        // return view('admin.manajemen-edit-akun', compact('data'));
     }
 
     /**

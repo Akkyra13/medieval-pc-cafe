@@ -44,13 +44,17 @@ class AkunController extends Controller
      */
     public function store(Request $request)
     {
-        $data = $this->validated($request);
+        $d = $this->validated($request);
 
-        $request->user()->update([
-            'password' => Hash::make($data['password']),
+        Akun::create([
+            'id_akses' => $d['id_akses'],
+            'username' => $d['username'],
+            'password' => Hash::make($d['password']),
+            'nama' => $d['name'],
+            'notelp' => $d['phone'],
         ]);
 
-        return redirect()->route('admin.akun')->with('success', 'Akun Ditambahkan');
+        return redirect()->route('admin.akun')->with('success', 'akun ditambahkan');
     }
 
     /**
@@ -66,7 +70,6 @@ class AkunController extends Controller
      */
     public function edit(string $id)
     {
-        $data = Akun::where('id_akun', $id)->get();
 
         // return view('admin.manajemen-edit-akun', compact('data'));
     }
@@ -76,7 +79,16 @@ class AkunController extends Controller
      */
     public function update(Request $request, string $id)
     {
-        //
+        $data = $this->validated($request);
+
+        Akun::where('id_akun', $id)->update([
+            'username' => $data['username'],
+            'password' => Hash::make($data['password']),
+            'nama' => $data['name'],
+            'notelp' => $data['phone'],
+        ]);
+
+        return redirect()->route('admin.akun')->with('success', 'perubahan disimpan');
     }
 
     /**
@@ -84,6 +96,7 @@ class AkunController extends Controller
      */
     public function destroy(string $id)
     {
-        //
+        Akun::findOrFail($id)->destroy();
+        return redirect()->route('admin.akun')->with('success', 'akun dihapus');
     }
 }

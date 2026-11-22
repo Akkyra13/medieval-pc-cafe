@@ -6,6 +6,7 @@ use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 use App\Models\PaketBilling;
 use App\Models\Zona;
+use App\Models\Transaksi;
 
 class BillingController extends Controller
 {
@@ -16,10 +17,11 @@ class BillingController extends Controller
     {
         $bills = PaketBilling::all();
         $zones = Zona::all();
+        $transactions = Transaksi::all();
         if (Auth::user()->id_akses === 1) {
-            return view('admin.manajemen-billing', compact(['bills', 'zones']));
+            return view('admin.manajemen-billing', compact('bills', 'zones', 'transactions'));
         } else {
-            return view('user.beli-billing', compact(['bills', 'zones']));
+            return view('user.beli-billing', compact('bills', 'zones'));
         }
     }
 

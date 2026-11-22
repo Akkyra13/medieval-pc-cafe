@@ -5,7 +5,9 @@ namespace App\Http\Controllers;
 use Illuminate\Http\Request;
 use App\Models\Pc;
 use App\Models\Zona;
+use App\Models\SesiBermain;
 use Illuminate\Support\Facades\Auth;
+use Illuminate\Validation\Rule;
 use Illuminate\Support\Facades\Hash;
 
 class PcController extends Controller
@@ -13,15 +15,15 @@ class PcController extends Controller
     /**
      * Display a listing of the resource.
      */
-    protected function validated(Request $d, bool $isCreate = false): array
+    protected function validated(Request $d, ?string $id = null): array
     {
         $data = [
             'id_zona' => 'required|exists:zona,id_zona',
-            'ip_address' => 'required|ip|unique:pc,ip_address',
+            'ip_address' => ['required', 'ipv4', Rule::unique('pc', 'ip_address')->ignore($id, 'id_pc')],
             'status_pc' => 'nullable|string|max:20',
         ];
 
-        if ($isCreate) {
+        if ($id === null) {
             $data['id_pc'] = 'required|string|max:5|unique:pc,id_pc';
         }
 
@@ -35,9 +37,11 @@ class PcController extends Controller
             ->orderBy('id_pc', 'asc')
             ->get();
         $zones = Zona::all();
+        $sessions = SesiBermain::whereNull('waktu_logout')
+            ->whereNotNull('waktu_login')->get();
 
         if (Auth::user()->id_akses === 1) {
-            $output = view('admin.manajemen-pc', compact(['pcs', 'zones']));
+            $output = view('admin.manajemen-pc', compact(['pcs', 'zones', 'sessions']));
         } else {
             $output = view('user.denah-pc', compact(['pcs', 'zones']));
         }
@@ -63,9 +67,13 @@ class PcController extends Controller
      */
     public function store(Request $request)
     {
-        $data = $this->validated($request, true);
+        $data = $this->validated($request);
 
-        Pc::create($data);
+        Pc::create([
+            'id_pc' => $data['id_pc'],
+            'id_zona' => $data['id_zona'],
+            'status_pc' => $data['status_pc'],
+        ]);
 
         return redirect()->route('admin.pc')->with('success', 'PC berhasil ditambahkan');
     }
@@ -91,7 +99,13 @@ class PcController extends Controller
      */
     public function update(Request $request, string $id)
     {
-        //
+        $d = $this->validated($request, $id);
+        Pc::where('id_pc', $id)->update([
+            'status_pc' => $d['status'],
+            'ip_address' => $d['ip_address'],
+            'id_zona' => $d['id_zona'],
+        ]);
+        return redirect()->route('admin.pc')->with('success', 'Informasi diperbarui');
     }
 
     /**
@@ -99,8 +113,12 @@ class PcController extends Controller
      */
     public function destroy(string $id)
     {
-        Pc::findOrFail($id)->delete();
+        $pc = Pc::findOrFail($id);
 
+        if ($pc->status_pc === 'Digunakan') {
+            return redirect()->route('admin.pc')->with('error', 'pc sedang digunakan');
+        }
+        $pc->delete();
         return redirect()->route('admin.pc')->with('success', 'PC dihapus');
     }
 }

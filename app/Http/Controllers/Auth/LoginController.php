@@ -48,7 +48,12 @@ class LoginController extends Controller
         $output = $data->validate([
             'username' => 'required',
             'password' => 'required',
-        ]);
+            ],
+            [
+            'username.required' => 'mohon isi username',
+            'password.required' => 'mohon isi password',
+            ]
+        );
 
         return $output;
     }
@@ -81,7 +86,7 @@ class LoginController extends Controller
         }
         RateLimiter::hit($key, 60);
 
-        return back()->withErrors(['username' => 'Login gagal'])->onlyInput('username');
+        return back()->withErrors(['username' => 'kredensial tidak cocok'])->onlyInput('username');
     }
 
     public function logout(Request $req)

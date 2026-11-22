@@ -5,6 +5,7 @@ namespace App\Http\Controllers;
 use Illuminate\Http\Request;
 use App\Models\Akun;
 use App\Models\SaldoWaktu;
+use App\Models\Transaksi;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Hash;
 
@@ -16,7 +17,13 @@ class ProfileController extends Controller
         $const = $r->validate([
             'current_password' => 'required|current_password',
             'password' => 'required|min:8|confirmed',
-        ]);
+            ],
+            [
+            'current_password.required' => 'wajib diisi',
+            'passowrd.required' => 'wajib diisi',
+            'password.min' => 'minimal 8 karakter',
+            ]
+        );
 
         return $const;
     }
@@ -27,7 +34,8 @@ class ProfileController extends Controller
     {
         $user = Akun::where('id_akun', Auth::id())->first();
         $billing = SaldoWaktu::where('id_akun', Auth::id());
-        return view('user.profile', compact('user', 'billing'));
+        $transactions = Transaksi::all();
+        return view('user.profile', compact('user', 'billing', 'transactions'));
     }
 
     /**

@@ -17,7 +17,7 @@
     <div class="section-header">
         <div>
             <div class="section-title">Manajemen Akun & Kuota Billing</div>
-            <div class="section-sub">Registrasi member, update profil/status akun, tambah kuota billing, dan kelola akun</div>
+            <div class="section-sub">Registrasi member, update akun, tambah kuota billing, dan kelola akun</div>
         </div>
     </div>
 
@@ -62,7 +62,6 @@
                         <th>Commoner</th>
                         <th>Noble</th>
                         <th>Royalty</th>
-                        <th>Status</th>
                         <th>Update Akun</th>
                         <th>Top-up & Hapus</th>
                     </tr>
@@ -74,7 +73,6 @@
                             $accUsername = data_get($acc, 'username', '-');
                             $accName = data_get($acc, 'name', data_get($acc, 'nama', '-'));
                             $accPhone = data_get($acc, 'phone', data_get($acc, 'no_hp', data_get($acc, 'telepon', '-')));
-                            $accStatus = data_get($acc, 'status', 'Aktif');
 
                             $q1 = (int) data_get($acc, 'quota.1', data_get($acc, 'commoner', data_get($acc, 'sisa_commoner', 0)));
                             $q2 = (int) data_get($acc, 'quota.2', data_get($acc, 'noble', data_get($acc, 'sisa_noble', 0)));
@@ -90,17 +88,12 @@
                             <td>{{ intdiv(max(0, $q1), 60) . 'j ' . str_pad((string) (max(0, $q1) % 60), 2, '0', STR_PAD_LEFT) . 'm' }}</td>
                             <td>{{ intdiv(max(0, $q2), 60) . 'j ' . str_pad((string) (max(0, $q2) % 60), 2, '0', STR_PAD_LEFT) . 'm' }}</td>
                             <td>{{ intdiv(max(0, $q3), 60) . 'j ' . str_pad((string) (max(0, $q3) % 60), 2, '0', STR_PAD_LEFT) . 'm' }}</td>
-                            <td>{{ $accStatus }}</td>
                             <td>
                                 <form action="{{ route('admin.akun.update', $accId) }}" method="POST" style="display:inline-flex; gap:6px; align-items:center; flex-wrap:wrap;">
                                     @csrf
                                     @method('PUT')
-                                    <input name="name" class="form-control" type="text" value="{{ $accName }}" style="width:130px;" required>
-                                    <input name="phone" class="form-control" type="text" value="{{ $accPhone }}" style="width:130px;" required>
-                                    <select name="status" class="form-control" style="width:auto;">
-                                        <option value="Aktif" {{ $accStatus === 'Aktif' ? 'selected' : '' }}>Aktif</option>
-                                        <option value="Nonaktif" {{ $accStatus === 'Nonaktif' ? 'selected' : '' }}>Nonaktif</option>
-                                    </select>
+                                    <input name="name" class="form-control" type="text" value="{{ $accName }}" style="width:140px;" required>
+                                    <input name="phone" class="form-control" type="text" value="{{ $accPhone }}" style="width:140px;" required>
                                     <button class="btn btn-secondary btn-sm" type="submit">Update</button>
                                 </form>
                             </td>

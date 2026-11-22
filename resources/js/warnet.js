@@ -46,6 +46,37 @@ function formatMinutes(mins) {
   return `${h}j ${String(m).padStart(2, "0")}m`;
 }
 
+function parseNumberSafe(val, fallback = 0) {
+  if (typeof val === "number") return Number.isFinite(val) ? val : fallback;
+  if (typeof val === "string") {
+    const cleaned = val.replace(/[^\d.-]/g, "");
+    if (!cleaned) return fallback;
+    const parsed = Number(cleaned);
+    return Number.isFinite(parsed) ? parsed : fallback;
+  }
+  return fallback;
+}
+
+function pickFirstValue(obj, paths, fallback = undefined) {
+  if (!obj || typeof obj !== "object") return fallback;
+  for (const path of paths) {
+    const parts = path.split(".");
+    let cur = obj;
+    let found = true;
+    for (const part of parts) {
+      if (cur === null || cur === undefined || typeof cur !== "object" || !(part in cur)) {
+        found = false;
+        break;
+      }
+      cur = cur[part];
+    }
+    if (found && cur !== null && cur !== undefined && String(cur).trim() !== "") {
+      return cur;
+    }
+  }
+  return fallback;
+}
+
 function parseJsonAttr(el, attrName, fallback = null) {
   if (!el || !el.dataset || !el.dataset[attrName]) return fallback;
   try {
@@ -58,67 +89,209 @@ function parseJsonAttr(el, attrName, fallback = null) {
 
 function normalizeZones(rawZones) {
   if (!Array.isArray(rawZones) || rawZones.length === 0) return warnetStore.zones;
-  return rawZones.map((z, idx) => ({
-    id: Number(z.id ?? z.id_zona ?? z.zona_id ?? idx + 1),
-    name: z.name ?? z.nama_zona ?? z.nama ?? `Zona ${idx + 1}`,
-    ratePerHour: Number(z.ratePerHour ?? z.tarif_per_jam ?? z.harga_per_jam ?? z.tarif ?? 0),
-    cpu: z.cpu ?? z.spesifikasi_cpu ?? "-",
-    gpu: z.gpu ?? z.spesifikasi_gpu ?? "-",
-    ram: z.ram ?? z.spesifikasi_ram ?? "-",
-    monitor: z.monitor ?? z.spesifikasi_monitor ?? "-"
-  }));
+  return rawZones.map((z, idx) => {
+    const rawRate = pickFirstValue(z, [
+      "ratePerHour",
+      "rate_per_hour",
+      "tarif_per_jam",
+      "tarifPerJam",
+      "harga_per_jam",
+      "hargaPerJam",
+      "tarif",
+      "harga",
+      "rate",
+      "price",
+      "zona.tarif_per_jam",
+      "zona.harga_per_jam",
+      "zona.tarif"
+    ], 0);
+
+    return {
+      id: parseNumberSafe(pickFirstValue(z, ["id", "id_zona", "zona_id", "zone_id"], idx + 1), idx + 1),
+      name: String(pickFirstValue(z, ["name", "nama_zona", "nama", "zone_name", "zona.nama_zona", "zona.name"], `Zona ${idx + 1}`)),
+      ratePerHour: parseNumberSafe(rawRate, 0),
+      cpu: String(pickFirstValue(z, ["cpu", "spesifikasi_cpu", "spec_cpu"], "-")),
+      gpu: String(pickFirstValue(z, ["gpu", "spesifikasi_gpu", "spec_gpu"], "-")),
+      ram: String(pickFirstValue(z, ["ram", "spesifikasi_ram", "spec_ram"], "-")),
+      monitor: String(pickFirstValue(z, ["monitor", "spesifikasi_monitor", "spec_monitor"], "-"))
+    };
+  });
 }
 
 function normalizePcs(rawPcs) {
   if (!Array.isArray(rawPcs) || rawPcs.length === 0) return warnetStore.pcs;
   return rawPcs.map(pc => ({
-    id: pc.id ?? pc.id_pc ?? pc.kode_pc ?? "PC",
-    zoneId: Number(pc.zoneId ?? pc.id_zona ?? pc.zona_id ?? 1),
-    ip: pc.ip ?? pc.ip_address ?? "-",
-    status: pc.status ?? pc.status_pc ?? "Tersedia",
-    user: pc.user ?? pc.username ?? pc.id_akun ?? null
+    id: String(pickFirstValue(pc, ["id", "id_pc", "kode_pc", "nama_pc"], "PC")),
+    zoneId: parseNumberSafe(pickFirstValue(pc, ["zoneId", "id_zona", "zona_id", "zone_id"], 1), 1),
+    ip: String(pickFirstValue(pc, ["ip", "ip_address", "alamat_ip"], "-")),
+    status: String(pickFirstValue(pc, ["status", "status_pc"], "Tersedia")),
+    user: pickFirstValue(pc, ["user", "username", "id_akun", "akun.username"], null)
   }));
 }
 
 function normalizeAccounts(rawUsers) {
   if (!Array.isArray(rawUsers) || rawUsers.length === 0) return warnetStore.accounts;
   return rawUsers.map(u => ({
-    id: u.id ?? u.id_akun ?? "-",
-    username: u.username ?? "-",
-    name: u.name ?? u.nama ?? "-",
-    phone: u.phone ?? u.no_hp ?? u.telepon ?? "-",
-    status: u.status ?? "Aktif",
+    id: pickFirstValue(u, ["id", "id_akun", "user_id"], "-"),
+    username: String(pickFirstValue(u, ["username", "user_name"], "-")),
+    name: String(pickFirstValue(u, ["name", "nama", "nama_lengkap"], "-")),
+    phone: String(pickFirstValue(u, ["phone", "no_hp", "telepon", "no_telepon"], "-")),
+    status: String(pickFirstValue(u, ["status"], "Aktif")),
     quota: {
-      1: Number(u.quota?.[1] ?? u.commoner ?? u.sisa_commoner ?? 0),
-      2: Number(u.quota?.[2] ?? u.noble ?? u.sisa_noble ?? 0),
-      3: Number(u.quota?.[3] ?? u.royalty ?? u.sisa_royalty ?? 0)
+      1: parseNumberSafe(pickFirstValue(u, ["quota.1", "commoner", "sisa_commoner", "quota_commoner", "saldo_commoner"], 0), 0),
+      2: parseNumberSafe(pickFirstValue(u, ["quota.2", "noble", "sisa_noble", "quota_noble", "saldo_noble"], 0), 0),
+      3: parseNumberSafe(pickFirstValue(u, ["quota.3", "royalty", "sisa_royalty", "quota_royalty", "saldo_royalty"], 0), 0)
     },
-    activePc: u.activePc ?? u.active_pc ?? null
+    activePc: pickFirstValue(u, ["activePc", "active_pc", "id_pc"], null)
   }));
 }
 
 function normalizeBills(rawBills) {
   if (!Array.isArray(rawBills) || rawBills.length === 0) return warnetStore.packages;
-  return rawBills.map((p, idx) => ({
-    id: Number(p.id ?? p.id_paket ?? p.id_bill ?? idx + 1),
-    zoneId: Number(p.zoneId ?? p.id_zona ?? p.zona_id ?? 1),
-    name: p.name ?? p.nama_paket ?? p.nama_bill ?? p.nama ?? `Paket ${idx + 1}`,
-    hours: Number(p.hours ?? p.durasi_jam ?? p.jam ?? 1),
-    price: Number(p.price ?? p.harga ?? p.tarif ?? 0),
-    active: p.active !== undefined ? Boolean(p.active) : true
-  }));
+  return rawBills.map((p, idx) => {
+    const rawPrice = pickFirstValue(p, [
+      "price",
+      "harga",
+      "tarif",
+      "nominal",
+      "total_harga",
+      "paket.harga",
+      "paket.price",
+      "bill.harga"
+    ], 0);
+
+    const rawHours = pickFirstValue(p, [
+      "hours",
+      "durasi_jam",
+      "durasi",
+      "jam",
+      "jumlah_jam",
+      "paket.durasi_jam",
+      "paket.hours"
+    ], 1);
+
+    const activeRaw = pickFirstValue(p, ["active", "is_active", "aktif", "status_aktif"], true);
+    const isActive = typeof activeRaw === "string"
+      ? !["0", "false", "nonaktif", "inactive", "tidak aktif"].includes(activeRaw.toLowerCase())
+      : Boolean(activeRaw);
+
+    return {
+      id: parseNumberSafe(pickFirstValue(p, ["id", "id_paket", "id_bill", "paket_id", "bill_id"], idx + 1), idx + 1),
+      zoneId: parseNumberSafe(pickFirstValue(p, ["zoneId", "id_zona", "zona_id", "zone_id", "zona.id_zona", "zona.id"], 1), 1),
+      name: String(pickFirstValue(p, ["name", "nama_paket", "nama_bill", "nama", "judul", "paket.nama_paket", "paket.name"], `Paket ${idx + 1}`)),
+      hours: parseNumberSafe(rawHours, 1),
+      price: parseNumberSafe(rawPrice, 0),
+      active: isActive
+    };
+  });
 }
 
 function normalizeTransactions(rawTx) {
   if (!Array.isArray(rawTx) || rawTx.length === 0) return warnetStore.transactions;
-  return rawTx.map(t => ({
-    id: t.id ?? t.id_transaksi ?? "-",
-    member: t.member ?? t.username ?? t.id_akun ?? "-",
-    time: t.time ?? t.created_at ?? t.tanggal ?? "-",
-    label: t.label ?? t.keterangan ?? t.nama_paket ?? "-",
-    method: t.method ?? t.metode_pembayaran ?? "-",
-    amount: Number(t.amount ?? t.nominal ?? t.total ?? 0)
-  }));
+  return rawTx.map(t => {
+    const memberVal = pickFirstValue(t, [
+      "member",
+      "username",
+      "nama_member",
+      "nama_user",
+      "nama",
+      "id_akun",
+      "akun_id",
+      "user_id",
+      "akun.username",
+      "akun.name",
+      "akun.nama",
+      "user.username",
+      "user.name",
+      "member.username",
+      "member.name"
+    ], "-");
+
+    const timeVal = pickFirstValue(t, [
+      "time",
+      "waktu",
+      "waktu_transaksi",
+      "tgl_transaksi",
+      "tanggal_transaksi",
+      "tanggal",
+      "created_at",
+      "updated_at"
+    ], "-");
+
+    const zoneName = pickFirstValue(t, [
+      "nama_zona",
+      "zona",
+      "zone",
+      "zona.nama_zona",
+      "zona.name",
+      "paket.zona.nama_zona"
+    ], "");
+
+    const pkgName = pickFirstValue(t, [
+      "nama_paket",
+      "nama_bill",
+      "paket",
+      "paket.nama_paket",
+      "paket.name",
+      "bill.nama_paket"
+    ], "");
+
+    const durasiJam = pickFirstValue(t, [
+      "durasi_jam",
+      "hours",
+      "jam",
+      "paket.durasi_jam"
+    ], "");
+
+    let builtLabel = pickFirstValue(t, [
+      "label",
+      "keterangan",
+      "deskripsi",
+      "item"
+    ], "");
+
+    if (!builtLabel) {
+      const durText = durasiJam !== "" ? ` (${durasiJam} Jam)` : "";
+      if (zoneName && pkgName) {
+        builtLabel = `${zoneName} - ${pkgName}${durText}`;
+      } else if (pkgName) {
+        builtLabel = `${pkgName}${durText}`;
+      } else if (zoneName) {
+        builtLabel = `${zoneName}${durText}`;
+      } else {
+        builtLabel = "-";
+      }
+    }
+
+    const methodVal = pickFirstValue(t, [
+      "method",
+      "metode_pembayaran",
+      "metode",
+      "payment_method",
+      "channel_pembayaran"
+    ], "-");
+
+    const amountVal = pickFirstValue(t, [
+      "amount",
+      "nominal",
+      "total",
+      "total_harga",
+      "total_bayar",
+      "harga",
+      "biaya"
+    ], 0);
+
+    return {
+      id: String(pickFirstValue(t, ["id", "id_transaksi", "kode_transaksi", "no_transaksi", "transaction_id"], "-")),
+      member: String(memberVal),
+      ownerId: pickFirstValue(t, ["id_akun", "akun_id", "user_id", "member_id", "akun.id_akun", "akun.id", "user.id"], null),
+      ownerUsername: pickFirstValue(t, ["username", "member_username", "akun.username", "user.username"], null),
+      time: String(timeVal),
+      label: String(builtLabel),
+      method: String(methodVal),
+      amount: parseNumberSafe(amountVal, 0)
+    };
+  });
 }
 
 function getResolvedDenahData() {
@@ -159,10 +332,18 @@ function getResolvedBillingData() {
 function getResolvedProfileTransactions() {
   const rootEl = document.getElementById("profile-page-root");
   const rawTx = parseJsonAttr(rootEl, "transactions", null);
-  if (Array.isArray(rawTx) && rawTx.length > 0) {
-    return normalizeTransactions(rawTx);
+  if (Array.isArray(rawTx)) {
+    if (rawTx.length === 0) return [];
+    return normalizeTransactions(rawTx).map((item, idx) => ({
+      ...item,
+      _fromProfileBackend: true,
+      _raw: rawTx[idx] || {}
+    }));
   }
-  return warnetStore.transactions;
+  return warnetStore.transactions.map(item => ({
+    ...item,
+    _fromProfileBackend: false
+  }));
 }
 
 function getZoneById(id) {
@@ -217,7 +398,7 @@ function extractQuotaFromBilling(billingData, fallbackQuota) {
     billingData.forEach(item => {
       if (!item) return;
       const zoneVal = String(item.zona ?? item.zone ?? item.nama_zona ?? item.id_zona ?? "").toLowerCase();
-      const mins = Number(item.sisa_menit ?? item.menit ?? item.kuota ?? item.saldo ?? 0);
+      const mins = parseNumberSafe(item.sisa_menit ?? item.menit ?? item.kuota ?? item.saldo ?? 0, 0);
       if (zoneVal === "commoner" || zoneVal === "1") result[1] = mins;
       if (zoneVal === "noble" || zoneVal === "2") result[2] = mins;
       if (zoneVal === "royalty" || zoneVal === "3") result[3] = mins;
@@ -226,26 +407,29 @@ function extractQuotaFromBilling(billingData, fallbackQuota) {
   }
   if (typeof billingData === "object") {
     return {
-      1: Number(
+      1: parseNumberSafe(
         billingData.commoner ??
         billingData.sisa_commoner ??
         billingData.quota_commoner ??
         billingData[1] ??
-        defaultQuota[1]
+        defaultQuota[1],
+        0
       ),
-      2: Number(
+      2: parseNumberSafe(
         billingData.noble ??
         billingData.sisa_noble ??
         billingData.quota_noble ??
         billingData[2] ??
-        defaultQuota[2]
+        defaultQuota[2],
+        0
       ),
-      3: Number(
+      3: parseNumberSafe(
         billingData.royalty ??
         billingData.sisa_royalty ??
         billingData.quota_royalty ??
         billingData[3] ??
-        defaultQuota[3]
+        defaultQuota[3],
+        0
       )
     };
   }
@@ -593,9 +777,32 @@ function renderProfile() {
   }
   if (historyBodyEl) {
     const allTx = getResolvedProfileTransactions();
-    const userTx = allTx.filter(
-      t => String(t.member).toLowerCase() === String(member.username).toLowerCase()
-    );
+    const isFromProfileBackend = allTx.length > 0 && allTx[0]._fromProfileBackend;
+
+    const targetUsername = String(member.username || "").trim().toLowerCase();
+    const targetId = String(member.id ?? "").trim().toLowerCase();
+
+    const userTx = allTx.filter(t => {
+      const candidates = [
+        t.member,
+        t.ownerUsername,
+        t.ownerId,
+        t._raw?.username,
+        t._raw?.id_akun,
+        t._raw?.user_id
+      ]
+        .filter(v => v !== null && v !== undefined && String(v).trim() !== "" && String(v).trim() !== "-")
+        .map(v => String(v).trim().toLowerCase());
+
+      if (candidates.length === 0) {
+        return Boolean(isFromProfileBackend);
+      }
+
+      const matchUser = targetUsername && candidates.includes(targetUsername);
+      const matchId = targetId && targetId !== "-" && candidates.includes(targetId);
+      return matchUser || matchId;
+    });
+
     if (userTx.length === 0) {
       historyBodyEl.innerHTML = `<tr><td colspan="5" class="muted">Belum ada transaksi billing</td></tr>`;
     } else {

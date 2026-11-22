@@ -8,7 +8,15 @@
 @php
     $userObj = $user ?? null;
     $billingObj = $billing ?? null;
-    $transactionsList = $transactions ?? ($riwayatTransaksi ?? ($userTransactions ?? collect()));
+
+    $transactionsList = $transactions
+        ?? ($riwayatTransaksi
+        ?? ($userTransactions
+        ?? ($transaksi
+        ?? ($history
+        ?? (data_get($userObj, 'transactions')
+        ?? (data_get($userObj, 'transaksi')
+        ?? collect()))))));
 
     $formatJamMenit = function ($menit) {
         $totalMenit = max(0, (int) ($menit ?? 0));

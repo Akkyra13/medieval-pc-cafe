@@ -5,14 +5,19 @@
 @section('content')
 @include('partials.navbar-admin')
 @php
-    $accountsList = $accounts ?? $users ?? collect();
+    $usersList = $users ?? collect();
     $zonesList = $zones ?? collect();
 @endphp
-<main class="container">
+<main
+    id="admin-account-root"
+    class="container"
+    data-users='@json($usersList)'
+    data-zones='@json($zonesList)'
+>
     <div class="section-header">
         <div>
             <div class="section-title">Manajemen Akun & Kuota Billing</div>
-            <div class="section-sub">Registrasi member, tambah kuota billing per zona, dan kelola status akun</div>
+            <div class="section-sub">Registrasi member, update profil/status akun, tambah kuota billing, dan kelola akun</div>
         </div>
     </div>
 
@@ -58,11 +63,12 @@
                         <th>Noble</th>
                         <th>Royalty</th>
                         <th>Status</th>
-                        <th>Top-up & Aksi</th>
+                        <th>Update Akun</th>
+                        <th>Top-up & Hapus</th>
                     </tr>
                 </thead>
                 <tbody id="admin-account-body">
-                    @foreach ($accountsList as $acc)
+                    @foreach ($usersList as $acc)
                         @php
                             $accId = data_get($acc, 'id_akun', data_get($acc, 'id'));
                             $accUsername = data_get($acc, 'username', '-');
@@ -86,6 +92,19 @@
                             <td>{{ intdiv(max(0, $q3), 60) . 'j ' . str_pad((string) (max(0, $q3) % 60), 2, '0', STR_PAD_LEFT) . 'm' }}</td>
                             <td>{{ $accStatus }}</td>
                             <td>
+                                <form action="{{ route('admin.akun.update', $accId) }}" method="POST" style="display:inline-flex; gap:6px; align-items:center; flex-wrap:wrap;">
+                                    @csrf
+                                    @method('PUT')
+                                    <input name="name" class="form-control" type="text" value="{{ $accName }}" style="width:130px;" required>
+                                    <input name="phone" class="form-control" type="text" value="{{ $accPhone }}" style="width:130px;" required>
+                                    <select name="status" class="form-control" style="width:auto;">
+                                        <option value="Aktif" {{ $accStatus === 'Aktif' ? 'selected' : '' }}>Aktif</option>
+                                        <option value="Nonaktif" {{ $accStatus === 'Nonaktif' ? 'selected' : '' }}>Nonaktif</option>
+                                    </select>
+                                    <button class="btn btn-secondary btn-sm" type="submit">Update</button>
+                                </form>
+                            </td>
+                            <td>
                                 <form action="{{ route('admin.akun.topup', $accId) }}" method="POST" style="display:inline-flex; gap:6px; align-items:center; flex-wrap:wrap;">
                                     @csrf
                                     @method('PUT')
@@ -104,7 +123,7 @@
                                             <option value="3">Royalty</option>
                                         @endif
                                     </select>
-                                    <input name="hours" class="form-control" type="number" min="1" value="2" style="width:80px;" required>
+                                    <input name="hours" class="form-control" type="number" min="1" value="2" style="width:75px;" required>
                                     <button class="btn btn-primary btn-sm" type="submit">+ Billing</button>
                                 </form>
                                 <form action="{{ route('admin.akun.destroy', $accId) }}" method="POST" style="display:inline-block; margin-left:4px;">

@@ -10,13 +10,13 @@ use Illuminate\Support\Facades\Hash;
 class AkunController extends Controller
 {
 
-    protected function validated(Request $r, bool $isCreate = false): array
+    protected function validated(Request $r, ?string $id = null): array
     {
         $cons = $r->validate([
-            'username' => 'required|string|max:20|min:5|unique:akun,username',
+            'username' => ['required', 'string', 'max:20', 'min:5', Rule::unique('akun', 'username')->ignore($id, 'id_akun')],
             'password' => 'required|min:8',
-            'nama' => 'required|string|min:5',
-            'notelp' => 'nullable|string|max:20|min:10',
+            'name' => 'required|string|min:5',
+            'phone' => 'nullable|string|max:20|min:10',
         ]);
 
         return $cons;
@@ -47,7 +47,7 @@ class AkunController extends Controller
         $d = $this->validated($request);
 
         Akun::create([
-            'id_akses' => $d['id_akses'],
+            'id_akses' => 3,
             'username' => $d['username'],
             'password' => Hash::make($d['password']),
             'nama' => $d['name'],
@@ -96,7 +96,7 @@ class AkunController extends Controller
      */
     public function destroy(string $id)
     {
-        Akun::findOrFail($id)->destroy();
+        Akun::findOrFail($id)->delete();
         return redirect()->route('admin.akun')->with('success', 'akun dihapus');
     }
 }

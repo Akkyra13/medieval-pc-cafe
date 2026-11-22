@@ -36,7 +36,7 @@
                 </div>
                 <div class="form-group">
                     <label for="acc-phone">No. Telepon</label>
-                    <input id="acc-phone" name="phone" class="form-control" type="text" value="{{ old('phone') }}" required>
+                    <input id="acc-notelp" name="phone" class="form-control" type="text" value="{{ old('phone') }}" required>
                 </div>
                 <div class="form-group">
                     <label for="acc-password">Password / PIN</label>

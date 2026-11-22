@@ -101,7 +101,7 @@ class PcController extends Controller
     {
         $d = $this->validated($request, $id);
         Pc::where('id_pc', $id)->update([
-            'status_pc' => $d['status'],
+            'status_pc' => $d['status_pc'],
             'ip_address' => $d['ip_address'],
             'id_zona' => $d['id_zona'],
         ]);
@@ -117,6 +117,10 @@ class PcController extends Controller
 
         if ($pc->status_pc === 'Digunakan') {
             return redirect()->route('admin.pc')->with('error', 'pc sedang digunakan');
+        }
+
+        if ($pc->sesiBermain()->exists()) {
+            return redirect()->route('admin.pc')->with('error', 'error foreign key, do something abt it');
         }
         $pc->delete();
         return redirect()->route('admin.pc')->with('success', 'PC dihapus');

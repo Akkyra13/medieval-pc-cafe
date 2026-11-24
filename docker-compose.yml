@@ -1,0 +1,41 @@
+services:
+  app:
+    build: .
+    container_name: medieval-billing
+    volumes:
+      - ./:/var/www/html
+    depends_on:
+      - db
+
+  web:
+    image: nginx:stable-alpine
+    container_name: medieval-web
+    ports:
+      - "8080:80"
+    volumes:
+      - ./:/var/www/html
+      - ./docker/nginx.conf:/etc/nginx/conf.d/default.conf
+    depends_on:
+      - app
+
+  db:
+    image: postgres:16
+    container_name: medieval-db
+    environment:
+        POSTGRES_DB: medieval-pc
+        POSTGRES_USER: postgres
+        POSTGRES_PASSWORD: pgsql123
+    ports:
+      - "5433:5432"
+    volumes:
+      - db_data:/var/lib/postgresql/data
+  node:
+    image: node:22
+    working_dir: /var/www/html
+    volumes:
+      - ./:/var/www/html
+    profiles: ["tools"]
+
+volumes:
+  db_data:
+

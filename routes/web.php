@@ -7,6 +7,7 @@ use App\Http\Controllers\ProfileController;
 use App\Http\Controllers\PcController;
 use App\Http\Controllers\BillingController;
 use App\Http\Controllers\AkunController;
+use App\Http\Controllers\TransaksiController;
 
 // Route::get('/login', function () {
 //     return view('login');
@@ -39,6 +40,10 @@ Route::middleware(['auth', 'role:3']) //checks if user is consumer
         Route::resource('beli-billing', BillingController::class)
             ->only(['index', 'store'])->names([
                 'index' => 'user.billing',
+            ]);
+
+        Route::resource('beli-billing', TransaksiController::class)
+            ->only(['store'])->names([
                 'store' => 'user.billing.store',
             ]);
 

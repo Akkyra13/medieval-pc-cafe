@@ -33,7 +33,8 @@ class PcController extends Controller
 
     public function index()
     {
-        $pcs = Pc::orderBy('id_zona', 'asc')
+        $pcs = Pc::with('sesiBermain.akun')
+            ->orderBy('id_zona', 'asc')
             ->orderBy('id_pc', 'asc')
             ->get();
         $zones = Zona::all();

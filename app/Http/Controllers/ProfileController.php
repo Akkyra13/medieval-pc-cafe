@@ -32,10 +32,11 @@ class ProfileController extends Controller
      */
     public function index()
     {
-        $user = Akun::where('id_akun', Auth::id())->first();
-        $billing = SaldoWaktu::where('id_akun', Auth::id());
-        $transactions = Transaksi::all();
-        return view('user.profile', compact('user', 'billing', 'transactions'));
+        // $user = Akun::where('id_akun', Auth::id())->first();
+        $user = Akun::with('saldoWaktu.zona', 'sesiBermain', 'transaksiPelanggan');
+        // $billing = SaldoWaktu::where('id_akun', Auth::id());
+        // $transactions = Transaksi::all();
+        return view('user.profile', compact('user'));
     }
 
     /**

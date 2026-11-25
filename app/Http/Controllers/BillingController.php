@@ -15,13 +15,13 @@ class BillingController extends Controller
      */
     public function index()
     {
-        $bills = PaketBilling::all();
-        $zones = Zona::all();
+        $bills = PaketBilling::with('zona')->get();
+        // $zones = Zona::all();
         $transactions = Transaksi::all();
         if (Auth::user()->id_akses === 1) {
-            return view('admin.manajemen-billing', compact('bills', 'zones', 'transactions'));
+            return view('admin.manajemen-billing', compact('bills', 'transactions'));
         } else {
-            return view('user.beli-billing', compact('bills', 'zones'));
+            return view('user.beli-billing', compact('bills'));
         }
     }
 

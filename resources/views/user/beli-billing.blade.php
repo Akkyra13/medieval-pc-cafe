@@ -7,6 +7,32 @@
 @php
     $billsList = $bills ?? ($packages ?? collect());
     $zonesList = $zones ?? collect();
+
+    $fallbackRates = [
+        1 => 7000,
+        2 => 12000,
+        3 => 25000,
+    ];
+
+    $extractNumeric = function ($item, array $keys, $default = 0) {
+        foreach ($keys as $key) {
+            $val = data_get($item, $key);
+            if (!is_null($val) && $val !== '') {
+                if (is_numeric($val)) {
+                    return (float) $val;
+                }
+                $cleaned = preg_replace('/[^\d.-]/', '', (string) $val);
+                if ($cleaned !== '' && is_numeric($cleaned)) {
+                    return (float) $cleaned;
+                }
+            }
+        }
+        return (float) $default;
+    };
+
+    $formatRp = function ($num) {
+        return 'Rp ' . number_format((float) ($num ?? 0), 0, ',', '.');
+    };
 @endphp
 <main
     id="billing-page-root"
@@ -23,12 +49,67 @@
 
     <div class="card">
         <h3 style="margin-bottom:12px;">1. Pilih Zona</h3>
-        <div id="billing-zones" class="grid-3"></div>
+        <div id="billing-zones" class="grid-3">
+            @foreach ($zonesList as $idx => $zone)
+                @php
+                    $zId = data_get($zone, 'id_zona', data_get($zone, 'id', $idx + 1));
+                    $zName = data_get($zone, 'nama_zona', data_get($zone, 'name', 'Zona'));
+                    $zRate = $extractNumeric($zone, [
+                        'tarif_per_jam',
+                        'harga_per_jam',
+                        'tarif',
+                        'harga',
+                        'ratePerHour',
+                        'rate_per_hour',
+                        'price',
+                        'biaya_per_jam',
+                    ], 0);
+                    if ($zRate <= 0 && isset($fallbackRates[(int) $zId])) {
+                        $zRate = $fallbackRates[(int) $zId];
+                    }
+                    $zCpu = data_get($zone, 'cpu', data_get($zone, 'spesifikasi_cpu', '-'));
+                @endphp
+                <div class="card selectable {{ $idx === 0 ? 'selected' : '' }}" data-select-zone="{{ $zId }}">
+                    <div style="font-weight:bold;">{{ $zName }}</div>
+                    <div style="color:#22d3ee; font-weight:bold; margin-top:6px;">{{ $formatRp($zRate) }} / jam</div>
+                    <div class="muted mt-12">{{ $zCpu ?: '-' }}</div>
+                </div>
+            @endforeach
+        </div>
     </div>
 
     <div class="card mt-16">
         <h3 style="margin-bottom:12px;">2. Pilih Paket atau Jam Kustom</h3>
-        <div id="billing-packages" class="grid-4"></div>
+        <div id="billing-packages" class="grid-4">
+            @foreach ($billsList as $idx => $pkg)
+                @php
+                    $pId = data_get($pkg, 'id_paket', data_get($pkg, 'id_bill', data_get($pkg, 'id', $idx + 1)));
+                    $pName = data_get($pkg, 'nama_paket', data_get($pkg, 'nama_bill', data_get($pkg, 'name', 'Paket')));
+                    $pHours = $extractNumeric($pkg, ['durasi_jam', 'hours', 'durasi', 'jam'], 1);
+                    $pPrice = $extractNumeric($pkg, [
+                        'harga',
+                        'harga_paket',
+                        'harga_jual',
+                        'price',
+                        'tarif',
+                        'nominal',
+                        'total_harga',
+                        'biaya',
+                    ], 0);
+                    $pActiveRaw = data_get($pkg, 'active', data_get($pkg, 'is_active', data_get($pkg, 'aktif', true)));
+                    $pActive = is_string($pActiveRaw)
+                        ? !in_array(strtolower($pActiveRaw), ['0', 'false', 'nonaktif', 'inactive', 'tidak aktif'], true)
+                        : (bool) $pActiveRaw;
+                @endphp
+                @if ($pActive)
+                    <div class="card selectable {{ $idx === 1 ? 'selected' : '' }}" data-select-pkg="{{ $pId }}">
+                        <div style="font-weight:bold;">{{ $pName }}</div>
+                        <div class="muted mt-12">{{ $pHours }} Jam</div>
+                        <div style="color:#34d399; font-weight:bold; margin-top:8px;">{{ $formatRp($pPrice) }}</div>
+                    </div>
+                @endif
+            @endforeach
+        </div>
 
         <div class="toolbar mt-16">
             <button id="custom-minus" class="btn btn-secondary btn-sm" type="button">-</button>

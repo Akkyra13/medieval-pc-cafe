@@ -90,43 +90,68 @@ function parseJsonAttr(el, attrName, fallback = null) {
 function normalizeZones(rawZones) {
   if (!Array.isArray(rawZones) || rawZones.length === 0) return warnetStore.zones;
   return rawZones.map((z, idx) => {
+    const zoneId = parseNumberSafe(pickFirstValue(z, ["id", "id_zona", "zona_id", "zone_id"], idx + 1), idx + 1);
+    const fallbackZone = warnetStore.zones.find(item => item.id === zoneId) || warnetStore.zones[idx] || warnetStore.zones[0];
     const rawRate = pickFirstValue(z, [
       "ratePerHour",
       "rate_per_hour",
       "tarif_per_jam",
       "tarifPerJam",
+      "tarif_jam",
       "harga_per_jam",
       "hargaPerJam",
+      "harga_jam",
       "tarif",
       "harga",
       "rate",
       "price",
+      "biaya_per_jam",
+      "biaya",
       "zona.tarif_per_jam",
       "zona.harga_per_jam",
-      "zona.tarif"
+      "zona.tarif",
+      "zona.harga"
     ], 0);
-
+    const parsedRate = parseNumberSafe(rawRate, 0);
     return {
-      id: parseNumberSafe(pickFirstValue(z, ["id", "id_zona", "zona_id", "zone_id"], idx + 1), idx + 1),
-      name: String(pickFirstValue(z, ["name", "nama_zona", "nama", "zone_name", "zona.nama_zona", "zona.name"], `Zona ${idx + 1}`)),
-      ratePerHour: parseNumberSafe(rawRate, 0),
-      cpu: String(pickFirstValue(z, ["cpu", "spesifikasi_cpu", "spec_cpu"], "-")),
-      gpu: String(pickFirstValue(z, ["gpu", "spesifikasi_gpu", "spec_gpu"], "-")),
-      ram: String(pickFirstValue(z, ["ram", "spesifikasi_ram", "spec_ram"], "-")),
-      monitor: String(pickFirstValue(z, ["monitor", "spesifikasi_monitor", "spec_monitor"], "-"))
+      id: zoneId,
+      name: String(pickFirstValue(z, ["name", "nama_zona", "nama", "zone_name", "zona.nama_zona", "zona.name"], fallbackZone?.name || `Zona ${idx + 1}`)),
+      ratePerHour: parsedRate > 0 ? parsedRate : (fallbackZone?.ratePerHour ?? 0),
+      cpu: String(pickFirstValue(z, ["cpu", "spesifikasi_cpu", "spec_cpu"], fallbackZone?.cpu || "-")),
+      gpu: String(pickFirstValue(z, ["gpu", "spesifikasi_gpu", "spec_gpu"], fallbackZone?.gpu || "-")),
+      ram: String(pickFirstValue(z, ["ram", "spesifikasi_ram", "spec_ram"], fallbackZone?.ram || "-")),
+      monitor: String(pickFirstValue(z, ["monitor", "spesifikasi_monitor", "spec_monitor"], fallbackZone?.monitor || "-"))
     };
   });
 }
 
 function normalizePcs(rawPcs) {
   if (!Array.isArray(rawPcs) || rawPcs.length === 0) return warnetStore.pcs;
-  return rawPcs.map(pc => ({
-    id: String(pickFirstValue(pc, ["id", "id_pc", "kode_pc", "nama_pc"], "PC")),
-    zoneId: parseNumberSafe(pickFirstValue(pc, ["zoneId", "id_zona", "zona_id", "zone_id"], 1), 1),
-    ip: String(pickFirstValue(pc, ["ip", "ip_address", "alamat_ip"], "-")),
-    status: String(pickFirstValue(pc, ["status", "status_pc"], "Tersedia")),
-    user: pickFirstValue(pc, ["user", "username", "id_akun", "akun.username"], null)
-  }));
+  return rawPcs.map(pc => {
+    const rawUser = pickFirstValue(pc, [
+      "user_aktif",
+      "active_user",
+      "activeUser",
+      "user",
+      "username",
+      "akun.username",
+      "akun.nama",
+      "akun.name",
+      "member.username",
+      "sesi_aktif.akun.username",
+      "sesi.akun.username"
+    ], null);
+    const resolvedUser = (typeof rawUser === "object" && rawUser !== null)
+      ? (rawUser.username ?? rawUser.nama ?? rawUser.name ?? null)
+      : rawUser;
+    return {
+      id: String(pickFirstValue(pc, ["id", "id_pc", "kode_pc", "nama_pc"], "PC")),
+      zoneId: parseNumberSafe(pickFirstValue(pc, ["zoneId", "id_zona", "zona_id", "zone_id"], 1), 1),
+      ip: String(pickFirstValue(pc, ["ip", "ip_address", "alamat_ip"], "-")),
+      status: String(pickFirstValue(pc, ["status", "status_pc"], "Tersedia")),
+      user: resolvedUser && String(resolvedUser).trim() !== "-" ? String(resolvedUser) : null
+    };
+  });
 }
 
 function normalizeAccounts(rawUsers) {
@@ -149,17 +174,37 @@ function normalizeAccounts(rawUsers) {
 function normalizeBills(rawBills) {
   if (!Array.isArray(rawBills) || rawBills.length === 0) return warnetStore.packages;
   return rawBills.map((p, idx) => {
+    const fallbackPkg = warnetStore.packages[idx] || warnetStore.packages[0];
+    const pkgName = String(pickFirstValue(p, ["name", "nama_paket", "nama_bill", "nama", "judul", "paket.nama_paket", "paket.name"], `Paket ${idx + 1}`));
+    const matchedByName = warnetStore.packages.find(
+      item => item.name.toLowerCase() === pkgName.toLowerCase()
+    );
+    const effectiveFallback = matchedByName || fallbackPkg;
     const rawPrice = pickFirstValue(p, [
       "price",
       "harga",
+      "harga_paket",
+      "harga_jual",
+      "harga_satuan",
+      "harga_per_jam",
+      "tarif_per_jam",
+      "nominal_harga",
+      "nominal_paket",
       "tarif",
+      "tarif_paket",
       "nominal",
       "total_harga",
+      "total_biaya",
+      "jumlah_bayar",
+      "total",
+      "biaya",
       "paket.harga",
       "paket.price",
-      "bill.harga"
+      "bill.harga",
+      "billing.harga",
+      "pivot.harga",
+      "pivot.price"
     ], 0);
-
     const rawHours = pickFirstValue(p, [
       "hours",
       "durasi_jam",
@@ -168,19 +213,19 @@ function normalizeBills(rawBills) {
       "jumlah_jam",
       "paket.durasi_jam",
       "paket.hours"
-    ], 1);
-
-    const activeRaw = pickFirstValue(p, ["active", "is_active", "aktif", "status_aktif"], true);
+    ], effectiveFallback?.hours ?? 1);
+    const parsedPrice = parseNumberSafe(rawPrice, 0);
+    const parsedHours = parseNumberSafe(rawHours, effectiveFallback?.hours ?? 1);
+    const activeRaw = pickFirstValue(p, ["active", "is_active", "aktif", "status_aktif", "status"], true);
     const isActive = typeof activeRaw === "string"
       ? !["0", "false", "nonaktif", "inactive", "tidak aktif"].includes(activeRaw.toLowerCase())
       : Boolean(activeRaw);
-
     return {
       id: parseNumberSafe(pickFirstValue(p, ["id", "id_paket", "id_bill", "paket_id", "bill_id"], idx + 1), idx + 1),
-      zoneId: parseNumberSafe(pickFirstValue(p, ["zoneId", "id_zona", "zona_id", "zone_id", "zona.id_zona", "zona.id"], 1), 1),
-      name: String(pickFirstValue(p, ["name", "nama_paket", "nama_bill", "nama", "judul", "paket.nama_paket", "paket.name"], `Paket ${idx + 1}`)),
-      hours: parseNumberSafe(rawHours, 1),
-      price: parseNumberSafe(rawPrice, 0),
+      zoneId: parseNumberSafe(pickFirstValue(p, ["zoneId", "id_zona", "zona_id", "zone_id", "zona.id_zona", "zona.id"], effectiveFallback?.zoneId ?? 1), 1),
+      name: pkgName,
+      hours: parsedHours,
+      price: parsedPrice > 0 ? parsedPrice : (effectiveFallback?.price ?? 0),
       active: isActive
     };
   });
@@ -191,22 +236,28 @@ function normalizeTransactions(rawTx) {
   return rawTx.map(t => {
     const memberVal = pickFirstValue(t, [
       "member",
-      "username",
       "nama_member",
+      "member_name",
+      "username",
       "nama_user",
+      "nama_akun",
       "nama",
+      "name",
       "id_akun",
       "akun_id",
       "user_id",
+      "member_id",
       "akun.username",
       "akun.name",
       "akun.nama",
+      "akun.nama_lengkap",
       "user.username",
       "user.name",
+      "user.nama",
       "member.username",
-      "member.name"
+      "member.name",
+      "member.nama"
     ], "-");
-
     const timeVal = pickFirstValue(t, [
       "time",
       "waktu",
@@ -217,52 +268,79 @@ function normalizeTransactions(rawTx) {
       "created_at",
       "updated_at"
     ], "-");
-
-    const zoneName = pickFirstValue(t, [
+    const zoneRaw = pickFirstValue(t, [
       "nama_zona",
       "zona",
       "zone",
       "zona.nama_zona",
       "zona.name",
-      "paket.zona.nama_zona"
+      "paket.zona.nama_zona",
+      "paket.zona.name",
+      "bill.zona.nama_zona"
     ], "");
-
-    const pkgName = pickFirstValue(t, [
+    const pkgRaw = pickFirstValue(t, [
       "nama_paket",
       "nama_bill",
       "paket",
+      "bill",
       "paket.nama_paket",
       "paket.name",
-      "bill.nama_paket"
+      "bill.nama_paket",
+      "bill.name"
     ], "");
-
     const durasiJam = pickFirstValue(t, [
       "durasi_jam",
+      "durasi",
       "hours",
       "jam",
-      "paket.durasi_jam"
+      "jumlah_jam",
+      "paket.durasi_jam",
+      "paket.hours",
+      "bill.durasi_jam"
     ], "");
-
+    const durasiMenit = pickFirstValue(t, [
+      "durasi_menit",
+      "menit",
+      "minutes"
+    ], "");
     let builtLabel = pickFirstValue(t, [
       "label",
+      "zona_durasi",
+      "zona_dan_durasi",
+      "paket_durasi",
+      "paket_dan_durasi",
       "keterangan",
       "deskripsi",
+      "catatan",
       "item"
     ], "");
-
-    if (!builtLabel) {
-      const durText = durasiJam !== "" ? ` (${durasiJam} Jam)` : "";
+    if (!builtLabel || String(builtLabel).trim() === "-") {
+      const zoneName = (typeof zoneRaw === "object" && zoneRaw !== null)
+        ? (zoneRaw.nama_zona ?? zoneRaw.name ?? zoneRaw.nama ?? "")
+        : (zoneRaw ?? "");
+      const pkgName = (typeof pkgRaw === "object" && pkgRaw !== null)
+        ? (pkgRaw.nama_paket ?? pkgRaw.name ?? pkgRaw.nama ?? "")
+        : (pkgRaw ?? "");
+      let durText = "";
+      if (durasiJam !== "" && durasiJam !== null) {
+        const dStr = String(durasiJam).trim();
+        durText = dStr.toLowerCase().includes("jam") ? ` (${dStr})` : ` (${dStr} Jam)`;
+      } else if (durasiMenit !== "" && durasiMenit !== null) {
+        const mStr = String(durasiMenit).trim();
+        durText = mStr.toLowerCase().includes("menit") ? ` (${mStr})` : ` (${mStr} Menit)`;
+      }
       if (zoneName && pkgName) {
         builtLabel = `${zoneName} - ${pkgName}${durText}`;
       } else if (pkgName) {
         builtLabel = `${pkgName}${durText}`;
       } else if (zoneName) {
         builtLabel = `${zoneName}${durText}`;
+      } else if (durText) {
+        builtLabel = durText.replace(/^\s*\(|\)\s*$/g, "");
       } else {
         builtLabel = "-";
       }
     }
-
     const methodVal = pickFirstValue(t, [
       "method",
       "metode_pembayaran",
@@ -270,7 +348,6 @@ function normalizeTransactions(rawTx) {
       "payment_method",
       "channel_pembayaran"
     ], "-");
-
     const amountVal = pickFirstValue(t, [
       "amount",
       "nominal",
@@ -280,7 +357,6 @@ function normalizeTransactions(rawTx) {
       "harga",
       "biaya"
     ], 0);
-
     return {
       id: String(pickFirstValue(t, ["id", "id_transaksi", "kode_transaksi", "no_transaksi", "transaction_id"], "-")),
       member: String(memberVal),
@@ -778,10 +854,8 @@ function renderProfile() {
   if (historyBodyEl) {
     const allTx = getResolvedProfileTransactions();
     const isFromProfileBackend = allTx.length > 0 && allTx[0]._fromProfileBackend;
-
     const targetUsername = String(member.username || "").trim().toLowerCase();
     const targetId = String(member.id ?? "").trim().toLowerCase();
-
     const userTx = allTx.filter(t => {
       const candidates = [
         t.member,
@@ -793,16 +867,13 @@ function renderProfile() {
       ]
         .filter(v => v !== null && v !== undefined && String(v).trim() !== "" && String(v).trim() !== "-")
         .map(v => String(v).trim().toLowerCase());
-
       if (candidates.length === 0) {
         return Boolean(isFromProfileBackend);
       }
-
       const matchUser = targetUsername && candidates.includes(targetUsername);
       const matchId = targetId && targetId !== "-" && candidates.includes(targetId);
       return matchUser || matchId;
     });
-
     if (userTx.length === 0) {
       historyBodyEl.innerHTML = `<tr><td colspan="5" class="muted">Belum ada transaksi billing</td></tr>`;
     } else {
@@ -823,8 +894,8 @@ function initAdminPcPage() {
   const searchEl = document.getElementById("admin-pc-search");
   const statusEl = document.getElementById("admin-pc-status");
   const addBtn = document.getElementById("open-add-pc-btn");
-  if (searchEl) searchEl.addEventListener("input", renderAdminPcStatsOnly);
-  if (statusEl) statusEl.addEventListener("change", renderAdminPcStatsOnly);
+  if (searchEl) searchEl.addEventListener("input", renderAdminPc);
+  if (statusEl) statusEl.addEventListener("change", renderAdminPc);
   if (addBtn) {
     addBtn.addEventListener("click", () => {
       const { zones } = getResolvedAdminPcData();
@@ -846,42 +917,44 @@ function initAdminPcPage() {
       });
     });
   }
-  renderAdminPcStatsOnly();
+  renderAdminPc();
 }
 
 function renderAdminPcStatsOnly() {
   const { pcs } = getResolvedAdminPcData();
+  const statsEl = document.getElementById("admin-pc-stats");
+  if (!statsEl) return;
   const total = pcs.length;
   const used = pcs.filter(p => ["digunakan", "terkunci"].includes(String(p.status).toLowerCase())).length;
   const avail = pcs.filter(p => String(p.status).toLowerCase() === "tersedia").length;
   const maint = pcs.filter(p => String(p.status).toLowerCase() === "maintenance").length;
-  const statsEl = document.getElementById("admin-pc-stats");
-  if (statsEl) {
-    statsEl.innerHTML = `
-      <div class="card"><div class="muted">Total PC</div><div class="stat-val">${total} Unit</div></div>
-      <div class="card"><div class="muted">Sedang Digunakan</div><div class="stat-val">${used} Unit</div></div>
-      <div class="card"><div class="muted">Tersedia</div><div class="stat-val">${avail} Unit</div></div>
-      <div class="card"><div class="muted">Maintenance</div><div class="stat-val">${maint} Unit</div></div>
-    `;
-  }
+  statsEl.innerHTML = `
+    <div class="card"><div class="muted">Total PC</div><div class="stat-val">${total} Unit</div></div>
+    <div class="card"><div class="muted">Sedang Digunakan</div><div class="stat-val">${used} Unit</div></div>
+    <div class="card"><div class="muted">Tersedia</div><div class="stat-val">${avail} Unit</div></div>
+    <div class="card"><div class="muted">Maintenance</div><div class="stat-val">${maint} Unit</div></div>
+  `;
+}
+
+function filterAdminPcTableRows() {
   const searchEl = document.getElementById("admin-pc-search");
   const statusEl = document.getElementById("admin-pc-status");
   const q = searchEl ? searchEl.value.trim().toLowerCase() : "";
   const st = statusEl ? statusEl.value : "ALL";
   const bodyEl = document.getElementById("admin-pc-body");
-  if (bodyEl) {
-    const rows = bodyEl.querySelectorAll("tr");
-    rows.forEach(tr => {
-      const text = tr.textContent.toLowerCase();
-      const matchQuery = !q || text.includes(q);
-      const matchStatus = st === "ALL" || text.includes(String(st).toLowerCase());
-      tr.style.display = matchQuery && matchStatus ? "" : "none";
-    });
-  }
+  if (!bodyEl) return;
+  const rows = bodyEl.querySelectorAll("tr");
+  rows.forEach(tr => {
+    const text = tr.textContent.toLowerCase();
+    const matchQuery = !q || text.includes(q);
+    const matchStatus = st === "ALL" || text.includes(String(st).toLowerCase());
+    tr.style.display = matchQuery && matchStatus ? "" : "none";
+  });
 }
 
 function renderAdminPc() {
   renderAdminPcStatsOnly();
+  filterAdminPcTableRows();
 }
 
 function initAdminAccountPage() {
@@ -1035,19 +1108,15 @@ function renderAdminBilling() {
   }
   const txBodyEl = document.getElementById("admin-tx-body");
   if (txBodyEl) {
-    if (!Array.isArray(transactions) || transactions.length === 0) {
-      txBodyEl.innerHTML = `<tr><td colspan="6" class="muted">Belum ada transaksi billing</td></tr>`;
-    } else {
-      txBodyEl.innerHTML = transactions.map(t => `
-        <tr>
-          <td>${t.id}</td>
-          <td>${t.member}</td>
-          <td>${t.time}</td>
-          <td>${t.label}</td>
-          <td>${t.method}</td>
-          <td>${formatRupiah(t.amount)}</td>
-        </tr>
-      `).join("");
-    }
+    txBodyEl.innerHTML = transactions.map(t => `
+      <tr>
+        <td>${t.id}</td>
+        <td>${t.member}</td>
+        <td>${t.time}</td>
+        <td>${t.label}</td>
+        <td>${t.method}</td>
+        <td>${formatRupiah(t.amount)}</td>
+      </tr>
+    `).join("");
   }
 }

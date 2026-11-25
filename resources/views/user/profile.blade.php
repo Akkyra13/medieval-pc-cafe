@@ -6,23 +6,45 @@
 @include('partials.navbar-user')
 
 @php
-    $userObj = $user ?? null;
-    $billingObj = $billing ?? null;
+    $rawUser = $user ?? null;
+    if ($rawUser instanceof \Illuminate\Support\Collection) {
+        $userObj = $rawUser->first();
+    } elseif (is_array($rawUser) && array_is_list($rawUser)) {
+        $userObj = $rawUser[0] ?? null;
+    } else {
+        $userObj = $rawUser;
+    }
+
+    $billingObj = $billing
+        ?? (data_get($userObj, 'saldoWaktu')
+        ?? (data_get($userObj, 'saldo_waktu')
+        ?? (data_get($userObj, 'quotas')
+        ?? (data_get($userObj, 'quota')
+        ?? null))));
 
     $transactionsList = $transactions
         ?? ($riwayatTransaksi
         ?? ($userTransactions
         ?? ($transaksi
         ?? ($history
+        ?? (data_get($userObj, 'transaksiPelanggan')
+        ?? (data_get($userObj, 'transaksi_pelanggan')
         ?? (data_get($userObj, 'transactions')
         ?? (data_get($userObj, 'transaksi')
-        ?? collect()))))));
+        ?? collect()))))))));
 
     $formatJamMenit = function ($menit) {
         $totalMenit = max(0, (int) ($menit ?? 0));
         $jam = intdiv($totalMenit, 60);
         $sisaMenit = $totalMenit % 60;
         return $jam . 'j ' . str_pad((string) $sisaMenit, 2, '0', STR_PAD_LEFT) . 'm';
+    };
+
+    $formatRupiah = function ($nominal) {
+        $cleaned = is_numeric($nominal)
+            ? (float) $nominal
+            : (float) preg_replace('/[^\d.-]/', '', (string) ($nominal ?? 0));
+        return 'Rp ' . number_format($cleaned, 0, ',', '.');
     };
 
     $ambilKuotaZona = function ($billing, $zonaKeys, $idZona) {
@@ -41,21 +63,175 @@
             }
 
             foreach ($billing as $item) {
-                $itemZona = strtolower((string) data_get($item, 'zona', data_get($item, 'zone', data_get($item, 'nama_zona', data_get($item, 'id_zona', '')))));
-                if (in_array($itemZona, array_map('strtolower', $zonaKeys), true) || (string) $itemZona === (string) $idZona) {
-                    return (int) data_get($item, 'sisa_menit', data_get($item, 'menit', data_get($item, 'kuota', data_get($item, 'saldo', 0))));
+                $itemZonaId = data_get($item, 'id_zona', data_get($item, 'zona_id', data_get($item, 'zona.id_zona', data_get($item, 'zona.id', ''))));
+                $itemZonaNama = strtolower((string) data_get(
+                    $item,
+                    'zona.nama_zona',
+                    data_get($item, 'zona.name', data_get($item, 'zona.nama', data_get($item, 'zona', data_get($item, 'zone', data_get($item, 'nama_zona', ''))))))
+                ));
+
+                $matchNama = $itemZonaNama !== '' && in_array($itemZonaNama, array_map('strtolower', $zonaKeys), true);
+                $matchId = (string) $itemZonaId !== '' && (string) $itemZonaId === (string) $idZona;
+
+                if ($matchNama || $matchId) {
+                    $val = data_get($item, 'sisa_menit')
+                        ?? data_get($item, 'menit')
+                        ?? data_get($item, 'kuota')
+                        ?? data_get($item, 'saldo')
+                        ?? data_get($item, 'balance')
+                        ?? data_get($item, 'durasi_menit')
+                        ?? 0;
+                    return (int) $val;
                 }
             }
         }
 
         foreach ($zonaKeys as $key) {
             $val = data_get($billing, $key);
-            if (!is_null($val)) {
+            if (!is_null($val) && !is_array($val) && !is_object($val)) {
                 return (int) $val;
             }
         }
 
-        return (int) data_get($billing, 'sisa_menit', data_get($billing, 'menit', data_get($billing, 'kuota', 0)));
+        return (int) (data_get($billing, 'sisa_menit')
+            ?? data_get($billing, 'menit')
+            ?? data_get($billing, 'kuota')
+            ?? data_get($billing, 'saldo')
+            ?? 0);
+    };
+
+    $resolveZonaDurasi = function ($tx) {
+        $directKeys = [
+            'label',
+            'zona_durasi',
+            'zona_dan_durasi',
+            'paket_durasi',
+            'paket_dan_durasi',
+            'keterangan',
+            'deskripsi',
+            'catatan',
+            'item',
+        ];
+
+        foreach ($directKeys as $key) {
+            $val = data_get($tx, $key);
+            if (is_array($val) || is_object($val)) {
+                $val = data_get($val, 'nama') ?? data_get($val, 'name') ?? data_get($val, 'label');
+            }
+            if (!is_null($val) && trim((string) $val) !== '' && trim((string) $val) !== '-') {
+                return trim((string) $val);
+            }
+        }
+
+        $zonaRaw = data_get($tx, 'nama_zona')
+            ?? data_get($tx, 'zona')
+            ?? data_get($tx, 'zone')
+            ?? data_get($tx, 'zona.nama_zona')
+            ?? data_get($tx, 'zona.name')
+            ?? data_get($tx, 'zona.nama')
+            ?? data_get($tx, 'paket.zona.nama_zona')
+            ?? data_get($tx, 'paket.zona.name')
+            ?? data_get($tx, 'paket.zona.nama')
+            ?? data_get($tx, 'paketBilling.zona.nama_zona')
+            ?? data_get($tx, 'paket_billing.zona.nama_zona')
+            ?? data_get($tx, 'bill.zona.nama_zona')
+            ?? data_get($tx, 'bill.zona.name')
+            ?? '';
+
+        if (is_array($zonaRaw) || is_object($zonaRaw)) {
+            $zonaRaw = data_get($zonaRaw, 'nama_zona') ?? data_get($zonaRaw, 'name') ?? data_get($zonaRaw, 'nama') ?? '';
+        }
+
+        $paketRaw = data_get($tx, 'nama_paket')
+            ?? data_get($tx, 'nama_bill')
+            ?? data_get($tx, 'paket')
+            ?? data_get($tx, 'bill')
+            ?? data_get($tx, 'paket.nama_paket')
+            ?? data_get($tx, 'paket.name')
+            ?? data_get($tx, 'paket.nama')
+            ?? data_get($tx, 'paketBilling.nama_paket')
+            ?? data_get($tx, 'paket_billing.nama_paket')
+            ?? data_get($tx, 'bill.nama_paket')
+            ?? data_get($tx, 'bill.name')
+            ?? data_get($tx, 'bill.nama')
+            ?? '';
+
+        if (is_array($paketRaw) || is_object($paketRaw)) {
+            $paketRaw = data_get($paketRaw, 'nama_paket') ?? data_get($paketRaw, 'name') ?? data_get($paketRaw, 'nama') ?? '';
+        }
+
+        $durasiJam = data_get($tx, 'durasi_jam')
+            ?? data_get($tx, 'durasi_paket')
+            ?? data_get($tx, 'durasi')
+            ?? data_get($tx, 'hours')
+            ?? data_get($tx, 'jam')
+            ?? data_get($tx, 'jumlah_jam')
+            ?? data_get($tx, 'paket.durasi_jam')
+            ?? data_get($tx, 'paket.durasi')
+            ?? data_get($tx, 'paket.hours')
+            ?? data_get($tx, 'paketBilling.durasi_jam')
+            ?? data_get($tx, 'paket_billing.durasi_jam')
+            ?? data_get($tx, 'bill.durasi_jam')
+            ?? data_get($tx, 'bill.durasi')
+            ?? '';
+
+        $durasiMenit = data_get($tx, 'durasi_menit')
+            ?? data_get($tx, 'menit')
+            ?? data_get($tx, 'minutes')
+            ?? data_get($tx, 'paket.durasi_menit')
+            ?? '';
+
+        $zonaStr = trim((string) $zonaRaw);
+        $paketStr = trim((string) $paketRaw);
+
+        $durText = '';
+        if ($durasiJam !== '' && !is_null($durasiJam)) {
+            $dStr = trim((string) $durasiJam);
+            $durText = stripos($dStr, 'jam') !== false ? " ({$dStr})" : " ({$dStr} Jam)";
+        } elseif ($durasiMenit !== '' && !is_null($durasiMenit)) {
+            $mStr = trim((string) $durasiMenit);
+            $durText = stripos($mStr, 'menit') !== false ? " ({$mStr})" : " ({$mStr} Menit)";
+        }
+
+        if ($zonaStr !== '' && $paketStr !== '') {
+            return "{$zonaStr} - {$paketStr}{$durText}";
+        }
+        if ($paketStr !== '') {
+            return "{$paketStr}{$durText}";
+        }
+        if ($zonaStr !== '') {
+            return "{$zonaStr}{$durText}";
+        }
+        if ($durText !== '') {
+            return trim($durText, " ()");
+        }
+
+        return '-';
+    };
+
+    $resolveActivePc = function ($user, $billing) {
+        $sesi = data_get($user, 'sesiBermain')
+            ?? data_get($user, 'sesi_bermain')
+            ?? data_get($user, 'sesiAktif')
+            ?? data_get($user, 'sesi_aktif');
+
+        if ($sesi instanceof \Illuminate\Support\Collection || (is_array($sesi) && array_is_list($sesi))) {
+            $sesi = collect($sesi)->first(function ($item) {
+                $status = strtolower((string) data_get($item, 'status', ''));
+                $endTime = data_get($item, 'waktu_selesai', data_get($item, 'selesai', data_get($item, 'end_at')));
+                return in_array($status, ['aktif', 'berjalan', 'digunakan', 'terkunci', 'active'], true) || is_null($endTime);
+            }) ?? collect($sesi)->last();
+        }
+
+        return data_get($sesi, 'id_pc')
+            ?? data_get($sesi, 'pc_id')
+            ?? data_get($sesi, 'pc.id_pc')
+            ?? data_get($sesi, 'pc.id')
+            ?? data_get($user, 'active_pc')
+            ?? data_get($user, 'activePc')
+            ?? data_get($user, 'id_pc')
+            ?? data_get($billing, 'id_pc')
+            ?? data_get($billing, 'pc_id');
     };
 
     $commonerMenit = $ambilKuotaZona($billingObj, ['commoner', 'sisa_commoner', 'quota_commoner'], 1);
@@ -66,7 +242,7 @@
     $username  = data_get($userObj, 'username', '-');
     $namaUser  = data_get($userObj, 'name', data_get($userObj, 'nama', '-'));
     $noTelp    = data_get($userObj, 'phone', data_get($userObj, 'no_hp', data_get($userObj, 'telepon', '-')));
-    $activePc  = data_get($userObj, 'active_pc', data_get($userObj, 'activePc', data_get($billingObj, 'id_pc', data_get($billingObj, 'pc_id'))));
+    $activePc  = $resolveActivePc($userObj, $billingObj);
 @endphp
 
 <main
@@ -150,7 +326,24 @@
                         <th>Nominal</th>
                     </tr>
                 </thead>
-                <tbody id="user-history-body"></tbody>
+                <tbody id="user-history-body">
+                    @foreach ($transactionsList as $tx)
+                        @php
+                            $txId = data_get($tx, 'id_transaksi', data_get($tx, 'kode_transaksi', data_get($tx, 'id', '-')));
+                            $txTime = data_get($tx, 'waktu', data_get($tx, 'tanggal', data_get($tx, 'created_at', '-')));
+                            $txZonaDurasi = $resolveZonaDurasi($tx);
+                            $txMethod = data_get($tx, 'metode_pembayaran', data_get($tx, 'metode', data_get($tx, 'method', '-')));
+                            $txAmount = data_get($tx, 'nominal', data_get($tx, 'total', data_get($tx, 'total_harga', data_get($tx, 'total_bayar', data_get($tx, 'amount', 0)))));
+                        @endphp
+                        <tr>
+                            <td>{{ $txId }}</td>
+                            <td>{{ $txTime }}</td>
+                            <td>{{ $txZonaDurasi }}</td>
+                            <td>{{ $txMethod }}</td>
+                            <td>{{ $formatRupiah($txAmount) }}</td>
+                        </tr>
+                    @endforeach
+                </tbody>
             </table>
         </div>
     </div>

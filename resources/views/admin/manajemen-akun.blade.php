@@ -56,7 +56,19 @@
                         return (int) data_get(
                             $item,
                             'sisa_menit',
-                            data_get($item, 'menit', data_get($item, 'kuota', data_get($item, 'saldo', data_get($item, 'balance', data_get($item, 'durasi_menit', 0))))))
+                            data_get(
+                                $item,
+                                'menit',
+                                data_get(
+                                    $item,
+                                    'kuota',
+                                    data_get(
+                                        $item,
+                                        'saldo',
+                                        data_get($item, 'balance', data_get($item, 'durasi_menit', 0))
+                                    )
+                                )
+                            )
                         );
                     }
                 }

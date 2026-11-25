@@ -113,6 +113,7 @@
         <h3 style="margin-bottom:12px;">Ganti Password</h3>
         <form action="{{ route('user.password.update', auth()->id()) }}" method="POST">
             @csrf
+            @method('PUT')
             <div class="form-group">
                 <label for="current-password">Password Lama</label>
                 <input id="current-password" name="current_password" class="form-control" type="password" required>

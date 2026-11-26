@@ -12,7 +12,8 @@ class DetailTransaksi extends Model
 
     protected $fillable = [
         'id_transaksi',
-        'id_zona',
+        'id_paket',
+        'qty',
         'durasi_beli_menit',
         'subtotal_harga',
     ];
@@ -22,8 +23,8 @@ class DetailTransaksi extends Model
         return $this->belongsTo(Transaksi::class, 'id_transaksi', 'id_transaksi');
     }
 
-    public function zona()
+    public function paketbilling()
     {
-        return $this->belongsTo(Zona::class, 'id_zona', 'id_zona');
+        return $this->belongsTo(PaketBilling::class, 'id_paket', 'id_paket');
     }
 }

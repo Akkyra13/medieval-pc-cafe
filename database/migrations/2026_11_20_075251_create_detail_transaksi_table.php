@@ -14,11 +14,13 @@ return new class extends Migration
         Schema::create('detail_transaksi', function (Blueprint $table) {
             $table->id('id_detail');
             $table->string('id_transaksi', 10);
-            $table->foreignId('id_zona')->constrained('zona','id_zona')->restrictOnDelete();
+            $table->foreign('id_transaksi')->references('id_transaksi')->on('transaksi')->cascadeOnDelete();
+            $table->foreignId('id_paket')->constrained('paket_billing','id_paket')->restrictOnDelete();
+            $table->integer('qty')->default(1);
             $table->integer('durasi_beli_menit');
             $table->integer('subtotal_harga');
 
-            $table->foreign('id_transaksi')->references('id_transaksi')->on('transaksi')->cascadeOnDelete();
+
         });
     }
 

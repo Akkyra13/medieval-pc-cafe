@@ -17,7 +17,7 @@ class BillingController extends Controller
     {
         $bills = PaketBilling::with('zona')->get();
         // $zones = Zona::all();
-        $transactions = Transaksi::with('detilTransaksi')->get();
+        $transactions = Transaksi::with('detailTransaksi')->get();
         if (Auth::user()->id_akses === 1) {
             return view('admin.manajemen-billing', compact('bills', 'transactions'));
         } else {

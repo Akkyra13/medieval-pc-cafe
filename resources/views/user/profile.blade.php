@@ -66,7 +66,7 @@
                 $itemZonaId = data_get($item, 'id_zona', data_get($item, 'zona_id', data_get($item, 'zona.id_zona', data_get($item, 'zona.id', ''))));
                 $itemZonaNama = strtolower((string) data_get(
                     $item,
-                    'zona.nama_zona',
+                    'zona.nama_zona')
                     data_get($item, 'zona.name', data_get($item, 'zona.nama', data_get($item, 'zona', data_get($item, 'zone', data_get($item, 'nama_zona', ''))))))
                 ));
 

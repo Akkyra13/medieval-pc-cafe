@@ -19,7 +19,6 @@ class PcController extends Controller
     {
         $data = [
             'id_zona' => 'required|exists:zona,id_zona',
-            'ip_address' => ['required', 'ipv4', Rule::unique('pc', 'ip_address')->ignore($id, 'id_pc')],
             'status_pc' => 'nullable|string|max:20',
         ];
 

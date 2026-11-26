@@ -12,6 +12,7 @@ class Zona extends Model
 
     protected $fillable = [
         'nama_zona',
+        'harga_per_jam',
         'spek_cpu',
         'spek_gpu',
         'spek_ram',

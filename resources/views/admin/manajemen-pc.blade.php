@@ -7,7 +7,56 @@
 @php
     $pcsList = $pcs ?? collect();
     $zonesList = $zones ?? collect();
+    $usersList = $users ?? ($accounts ?? collect());
     $statusOptions = $pcStatuses ?? ['Tersedia', 'Digunakan', 'Terkunci', 'Maintenance'];
+
+    $resolvePcUser = function ($pc, $pcId) use ($usersList) {
+        $candidates = [
+            data_get($pc, 'user_aktif'),
+            data_get($pc, 'active_user'),
+            data_get($pc, 'activeUser'),
+            data_get($pc, 'user'),
+            data_get($pc, 'username'),
+            data_get($pc, 'akun.username'),
+            data_get($pc, 'akun.nama'),
+            data_get($pc, 'akun.name'),
+            data_get($pc, 'member.username'),
+            data_get($pc, 'member.nama'),
+            data_get($pc, 'sesiBermain.akun.username'),
+            data_get($pc, 'sesiBermain.akun.nama'),
+            data_get($pc, 'sesiBermain.akun.name'),
+            data_get($pc, 'sesiBermain.username'),
+            data_get($pc, 'sesi_aktif.akun.username'),
+            data_get($pc, 'sesi_aktif.username'),
+            data_get($pc, 'sesi.akun.username'),
+            data_get($pc, 'sesi.username'),
+        ];
+
+        foreach ($candidates as $val) {
+            if (is_array($val) || is_object($val)) {
+                $nested = data_get($val, 'username') ?? data_get($val, 'nama') ?? data_get($val, 'name');
+                if (!is_null($nested) && trim((string) $nested) !== '') {
+                    return (string) $nested;
+                }
+            } elseif (!is_null($val) && trim((string) $val) !== '' && trim((string) $val) !== '-') {
+                return (string) $val;
+            }
+        }
+
+        if (!empty($pcId) && ($usersList instanceof \Illuminate\Support\Collection || is_array($usersList))) {
+            foreach ($usersList as $u) {
+                $uPc = data_get($u, 'active_pc') ?? data_get($u, 'activePc') ?? data_get($u, 'id_pc');
+                if (!is_null($uPc) && (string) $uPc === (string) $pcId) {
+                    $uName = data_get($u, 'username') ?? data_get($u, 'nama') ?? data_get($u, 'name');
+                    if (!is_null($uName) && trim((string) $uName) !== '') {
+                        return (string) $uName;
+                    }
+                }
+            }
+        }
+
+        return '-';
+    };
 @endphp
 <main
     id="admin-pc-root"
@@ -103,14 +152,14 @@
                             $pcZoneName = data_get($pc, 'nama_zona', data_get($pc, 'zone.nama_zona', data_get($pc, 'zone.name', $pcZoneId)));
                             $pcIp = data_get($pc, 'ip_address', data_get($pc, 'ip', '-'));
                             $pcStatus = data_get($pc, 'status', data_get($pc, 'status_pc', 'Tersedia'));
-                            $pcUser = data_get($pc, 'username', data_get($pc, 'user', '-'));
+                            $pcUser = $resolvePcUser($pc, $pcId);
                         @endphp
                         <tr>
                             <td><strong>{{ $pcId }}</strong></td>
                             <td>{{ $pcZoneName }}</td>
                             <td>{{ $pcIp }}</td>
                             <td>{{ $pcStatus }}</td>
-                            <td>{{ $pcUser ?: '-' }}</td>
+                            <td>{{ $pcUser }}</td>
                             <td>
                                 <form action="{{ route('admin.pc.update', $pcId) }}" method="POST" style="display:inline-flex; gap:6px; align-items:center; flex-wrap:wrap;">
                                     @csrf

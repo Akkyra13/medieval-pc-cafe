@@ -15,7 +15,7 @@ return new class extends Migration
             $table->id('id_detail');
             $table->string('id_transaksi', 10);
             $table->foreign('id_transaksi')->references('id_transaksi')->on('transaksi')->cascadeOnDelete();
-            $table->foreignId('id_paket')->constrained('paket','id_paket')->restrictOnDelete();
+            $table->foreignId('id_paket')->constrained('paket_billing','id_paket')->restrictOnDelete();
             $table->integer('qty')->default(1);
             $table->integer('durasi_beli_menit');
             $table->integer('subtotal_harga');

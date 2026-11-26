@@ -159,21 +159,21 @@ class DatabaseSeeder extends Seeder
         // Sesi Bermain
         DB::table('sesi_bermain')->insert([
             [
-                'id_pc' => 'PC-01',
+                'id_pc' => 'CM-01',
                 'id_akun' => 3,
                 'waktu_login' => '2026-11-17 15:00:00',
                 'waktu_logout' => '2026-11-17 17:00:00',
                 'durasi_terpakai_menit' => 120,
             ],
             [
-                'id_pc' => 'NB-04',
+                'id_pc' => 'NB-02',
                 'id_akun' => 3,
                 'waktu_login' => '2026-11-18 11:35:00',
                 'waktu_logout' => null,
                 'durasi_terpakai_menit' => null,
             ],
             [
-                'id_pc' => 'PC-02',
+                'id_pc' => 'CM-02',
                 'id_akun' => 4,
                 'waktu_login' => '2026-11-18 12:00:00',
                 'waktu_logout' => null,

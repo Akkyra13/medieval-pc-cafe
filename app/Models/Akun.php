@@ -3,6 +3,7 @@
 namespace App\Models;
 
 use Illuminate\Foundation\Auth\User as Authenticatable;
+use Illuminate\Support\Facades\Auth;
 
 class Akun extends Authenticatable
 {
@@ -58,7 +59,7 @@ class Akun extends Authenticatable
         } elseif ($role === 3) {
             return ('user.profile');
         } else {
-            return ('login');
+            return ('denah-pc');
         }
     }
 }

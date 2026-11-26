@@ -12,6 +12,11 @@ use Illuminate\Support\Facades\Hash;
 
 class PcController extends Controller
 {
+    protected const STAT = [
+        'O' => 'Occupied',
+        'A' => 'Available',
+        'M' => 'Maintenace',
+    ];
     /**
      * Display a listing of the resource.
      */
@@ -39,11 +44,12 @@ class PcController extends Controller
         $zones = Zona::all();
         $sessions = SesiBermain::whereNull('waktu_logout')
             ->whereNotNull('waktu_login')->get();
+        $status = self::STAT;
 
-        if (Auth::user()->id_akses === 1) {
-            $output = view('admin.manajemen-pc', compact(['pcs', 'zones', 'sessions']));
+        if (Auth::check() && Auth::user()->id_akses === 1) {
+            $output = view('admin.manajemen-pc', compact(['pcs', 'zones', 'sessions', 'status']));
         } else {
-            $output = view('user.denah-pc', compact(['pcs', 'zones']));
+            $output = view('user.denah-pc', compact(['pcs', 'zones', 'status']));
         }
         return $output;
     }

@@ -21,12 +21,13 @@ use App\Http\Controllers\TransaksiController;
 Route::get('/', function () {
     return Auth::check()
         ? redirect()->route(Auth::user()->homeRoute())
-        : redirect()->route('login');
+        : redirect()->route('user.denah');
 });
 
 Auth::routes();
 
-// Route::get('/home', [App\Http\Controllers\HomeController::class, 'index'])->name('home');
+Route::resource('denah-pc', PcController::class)
+    ->only(['index'])->name('index', 'user.denah');
 
 // user pages
 //
@@ -34,8 +35,6 @@ Auth::routes();
 Route::middleware(['auth', 'role:3']) //checks if user is consumer
     ->group(function () {
 
-        Route::resource('denah-pc', PcController::class)
-            ->only(['index'])->name('index', 'user.denah');
 
         Route::resource('beli-billing', BillingController::class)
             ->only(['index', 'store'])->names([

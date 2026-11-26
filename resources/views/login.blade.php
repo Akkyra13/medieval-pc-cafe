@@ -1,6 +1,6 @@
 @extends('layouts.app')
 
-@section('title', 'Login - Sistem Billing Warnet')
+@section('title', Login - Sistem Billing Warnet)
 
 @section('content')
 <div class="login-wrapper">

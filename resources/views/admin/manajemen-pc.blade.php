@@ -10,42 +10,90 @@
     $usersList = $users ?? ($accounts ?? collect());
     $statusOptions = $pcStatuses ?? ['Tersedia', 'Digunakan', 'Terkunci', 'Maintenance'];
 
-    $resolvePcUser = function ($pc, $pcId) use ($usersList) {
+    $extractUserLabel = function ($val) {
+        if (is_null($val) || $val === false) return null;
+
+        if (is_array($val) || is_object($val)) {
+            if ($val instanceof \Illuminate\Support\Collection || (is_array($val) && array_is_list($val))) {
+                $activeItem = collect($val)->first(function ($item) {
+                    $status = strtolower((string) data_get($item, 'status', data_get($item, 'status_sesi', '')));
+                    $endTime = data_get($item, 'waktu_selesai', data_get($item, 'selesai', data_get($item, 'end_at')));
+                    return in_array($status, ['aktif', 'berjalan', 'digunakan', 'terkunci', 'active'], true) || is_null($endTime);
+                }) ?? collect($val)->last();
+
+                return $activeItem ? call_user_func(function ($item) {
+                    $nested = data_get($item, 'akun.username')
+                        ?? data_get($item, 'akun.nama')
+                        ?? data_get($item, 'akun.name')
+                        ?? data_get($item, 'user.username')
+                        ?? data_get($item, 'user.nama')
+                        ?? data_get($item, 'user.name')
+                        ?? data_get($item, 'member.username')
+                        ?? data_get($item, 'member.nama')
+                        ?? data_get($item, 'username')
+                        ?? data_get($item, 'nama')
+                        ?? data_get($item, 'name');
+                    return (!is_null($nested) && trim((string) $nested) !== '' && trim((string) $nested) !== '-')
+                        ? (string) $nested
+                        : null;
+                }, $activeItem) : null;
+            }
+
+            $nested = data_get($val, 'username')
+                ?? data_get($val, 'nama')
+                ?? data_get($val, 'name')
+                ?? data_get($val, 'akun.username')
+                ?? data_get($val, 'akun.nama')
+                ?? data_get($val, 'akun.name')
+                ?? data_get($val, 'user.username')
+                ?? data_get($val, 'user.nama')
+                ?? data_get($val, 'user.name');
+
+            return (!is_null($nested) && trim((string) $nested) !== '' && trim((string) $nested) !== '-')
+                ? (string) $nested
+                : null;
+        }
+
+        $str = trim((string) $val);
+        return ($str !== '' && $str !== '-') ? $str : null;
+    };
+
+    $resolvePcUser = function ($pc, $pcId, $pcStatus) use ($usersList, $extractUserLabel) {
+        if (strtolower((string) $pcStatus) === 'tersedia') {
+            return '-';
+        }
+
         $candidates = [
             data_get($pc, 'user_aktif'),
             data_get($pc, 'active_user'),
             data_get($pc, 'activeUser'),
+            data_get($pc, 'sesiBermain'),
+            data_get($pc, 'sesi_bermain'),
+            data_get($pc, 'sesiAktif'),
+            data_get($pc, 'sesi_aktif'),
+            data_get($pc, 'sesi'),
+            data_get($pc, 'akun'),
             data_get($pc, 'user'),
+            data_get($pc, 'member'),
             data_get($pc, 'username'),
-            data_get($pc, 'akun.username'),
-            data_get($pc, 'akun.nama'),
-            data_get($pc, 'akun.name'),
-            data_get($pc, 'member.username'),
-            data_get($pc, 'member.nama'),
-            data_get($pc, 'sesiBermain.akun.username'),
-            data_get($pc, 'sesiBermain.akun.nama'),
-            data_get($pc, 'sesiBermain.akun.name'),
-            data_get($pc, 'sesiBermain.username'),
-            data_get($pc, 'sesi_aktif.akun.username'),
-            data_get($pc, 'sesi_aktif.username'),
-            data_get($pc, 'sesi.akun.username'),
-            data_get($pc, 'sesi.username'),
         ];
 
-        foreach ($candidates as $val) {
-            if (is_array($val) || is_object($val)) {
-                $nested = data_get($val, 'username') ?? data_get($val, 'nama') ?? data_get($val, 'name');
-                if (!is_null($nested) && trim((string) $nested) !== '') {
-                    return (string) $nested;
-                }
-            } elseif (!is_null($val) && trim((string) $val) !== '' && trim((string) $val) !== '-') {
-                return (string) $val;
+        foreach ($candidates as $cand) {
+            $found = $extractUserLabel($cand);
+            if (!is_null($found)) {
+                return $found;
             }
         }
 
         if (!empty($pcId) && ($usersList instanceof \Illuminate\Support\Collection || is_array($usersList))) {
             foreach ($usersList as $u) {
-                $uPc = data_get($u, 'active_pc') ?? data_get($u, 'activePc') ?? data_get($u, 'id_pc');
+                $uPc = data_get($u, 'active_pc')
+                    ?? data_get($u, 'activePc')
+                    ?? data_get($u, 'id_pc')
+                    ?? data_get($u, 'pc_id')
+                    ?? data_get($u, 'sesiBermain.id_pc')
+                    ?? data_get($u, 'sesi_bermain.id_pc');
+
                 if (!is_null($uPc) && (string) $uPc === (string) $pcId) {
                     $uName = data_get($u, 'username') ?? data_get($u, 'nama') ?? data_get($u, 'name');
                     if (!is_null($uName) && trim((string) $uName) !== '') {
@@ -81,6 +129,7 @@
                 <div class="form-group">
                     <label for="pc-id-input">ID PC</label>
                     <input id="pc-id-input" name="id_pc" class="form-control" type="text" placeholder="PC-07" value="{{ old('id_pc') }}" required>
+                    @error('id_pc') <small>{{ $message }}</small> @enderror
                 </div>
                 <div class="form-group">
                     <label for="pc-zone-input">Zona</label>
@@ -99,10 +148,12 @@
                             <option value="3" {{ old('id_zona') == '3' ? 'selected' : '' }}>Royalty</option>
                         @endif
                     </select>
+                    @error('id_zona') <small>{{ $message }}</small> @enderror
                 </div>
                 <div class="form-group">
                     <label for="pc-ip-input">IP Address</label>
                     <input id="pc-ip-input" name="ip_address" class="form-control" type="text" placeholder="192.168.1.107" value="{{ old('ip_address') }}" required>
+                    @error('ip_address') <small>{{ $message }}</small> @enderror
                 </div>
                 <div class="form-group">
                     <label for="pc-status-input">Status</label>
@@ -111,6 +162,7 @@
                             <option value="{{ $stVal }}" {{ (string) old('status') === (string) $stVal ? 'selected' : '' }}>{{ $stVal }}</option>
                         @endforeach
                     </select>
+                    @error('status_pc') <small>{{ $message }}</small> @enderror
                 </div>
             </div>
             <button class="btn btn-primary btn-sm" type="submit">+ Simpan PC</button>
@@ -144,11 +196,10 @@
                     @foreach ($pcsList as $pc)
                         @php
                             $pcId = data_get($pc, 'id_pc', data_get($pc, 'id'));
-                            $pcZoneId = data_get($pc, 'id_zona', data_get($pc, 'zoneId', 1));
-                            $pcZoneName = data_get($pc, 'nama_zona', data_get($pc, 'zone.nama_zona', data_get($pc, 'zone.name', $pcZoneId)));
+                            $pcZoneName = data_get($pc, 'nama_zona', data_get($pc, 'zone.nama_zona', data_get($pc, 'zone.name', data_get($pc, 'id_zona', data_get($pc, 'zoneId', 1)))));
                             $pcIp = data_get($pc, 'ip_address', data_get($pc, 'ip', '-'));
                             $pcStatus = data_get($pc, 'status', data_get($pc, 'status_pc', 'Tersedia'));
-                            $pcUser = $resolvePcUser($pc, $pcId);
+                            $pcUser = $resolvePcUser($pc, $pcId, $pcStatus);
                         @endphp
                         <tr>
                             <td><strong>{{ $pcId }}</strong></td>
@@ -157,25 +208,9 @@
                             <td>{{ $pcStatus }}</td>
                             <td>{{ $pcUser }}</td>
                             <td>
-                                <form action="{{ route('admin.pc.update', $pcId) }}" method="POST" style="display:inline-flex; gap:6px; align-items:center; flex-wrap:wrap;">
+                                <form action="{{ route('admin.pc.update', $pcId) }}" method="POST" style="display:inline-flex; gap:6px; align-items:center;">
                                     @csrf
                                     @method('PUT')
-                                    <select name="id_zona" class="form-control" style="width:auto;">
-                                        @if (count($zonesList) > 0)
-                                            @foreach ($zonesList as $zone)
-                                                @php
-                                                    $zId = data_get($zone, 'id_zona', data_get($zone, 'id'));
-                                                    $zName = data_get($zone, 'nama_zona', data_get($zone, 'name'));
-                                                @endphp
-                                                <option value="{{ $zId }}" {{ (string) $pcZoneId === (string) $zId ? 'selected' : '' }}>{{ $zName }}</option>
-                                            @endforeach
-                                        @else
-                                            <option value="1" {{ (string) $pcZoneId === '1' ? 'selected' : '' }}>Commoner</option>
-                                            <option value="2" {{ (string) $pcZoneId === '2' ? 'selected' : '' }}>Noble</option>
-                                            <option value="3" {{ (string) $pcZoneId === '3' ? 'selected' : '' }}>Royalty</option>
-                                        @endif
-                                    </select>
-                                    <input name="ip_address" class="form-control" type="text" value="{{ $pcIp }}" style="width:140px;" required>
                                     <select name="status" class="form-control" style="width:auto;">
                                         @foreach ($statusOptions as $stVal)
                                             <option value="{{ $stVal }}" {{ (string) $pcStatus === (string) $stVal ? 'selected' : '' }}>{{ $stVal }}</option>

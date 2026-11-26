@@ -25,6 +25,8 @@
             data_get($acc, 'billings'),
             data_get($acc, 'billing'),
             data_get($acc, 'kuota'),
+            data_get($acc, 'saldoWaktu'),
+            data_get($acc, 'saldo_waktu'),
         ];
 
         foreach ($containers as $container) {
@@ -49,26 +51,26 @@
                     $itemZona = strtolower((string) data_get(
                         $item,
                         'zona',
-                        data_get($item, 'zone', data_get($item, 'nama_zona', data_get($item, 'id_zona', '')))
+                        data_get(
+                            $item,
+                            'zone',
+                            data_get(
+                                $item,
+                                'nama_zona',
+                                data_get($item, 'zona.nama_zona', data_get($item, 'id_zona', data_get($item, 'zona_id', '')))
+                            )
+                        )
                     ));
 
                     if (in_array($itemZona, $zonaLower, true) || (string) $itemZona === (string) $idZona) {
-                        return (int) data_get(
-                            $item,
-                            'sisa_menit',
-                            data_get(
-                                $item,
-                                'menit',
-                                data_get(
-                                    $item,
-                                    'kuota',
-                                    data_get(
-                                        $item,
-                                        'saldo',
-                                        data_get($item, 'balance', data_get($item, 'durasi_menit', 0))
-                                    )
-                                )
-                            )
+                        return (int) (
+                            data_get($item, 'sisa_menit')
+                            ?? data_get($item, 'menit')
+                            ?? data_get($item, 'kuota')
+                            ?? data_get($item, 'saldo')
+                            ?? data_get($item, 'balance')
+                            ?? data_get($item, 'durasi_menit')
+                            ?? 0
                         );
                     }
                 }

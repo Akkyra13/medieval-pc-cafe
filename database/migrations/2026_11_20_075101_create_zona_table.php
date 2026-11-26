@@ -14,7 +14,6 @@ return new class extends Migration
         Schema::create('zona', function (Blueprint $table) {
             $table->id('id_zona');
             $table->string('nama_zona', 20);
-            $table->integer('harga_per_jam');
             $table->string('spek_cpu', 255)->nullable();
             $table->string('spek_gpu', 255)->nullable();
             $table->string('spek_ram', 255)->nullable();

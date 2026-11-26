@@ -26,4 +26,9 @@ class PaketBilling extends Model
     {
         return $this->belongsTo(Zona::class, 'id_zona', 'id_zona');
     }
+
+    public function detailTransaksi()
+    {
+        return $this->hasMany(DetailTransaksi::class, 'id_paket', 'id_paket');
+    }
 }

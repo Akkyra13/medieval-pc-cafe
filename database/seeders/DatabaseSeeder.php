@@ -22,7 +22,6 @@ class DatabaseSeeder extends Seeder
         DB::table('zona')->insert([
             [
                 'nama_zona'     => 'Commoner',
-                'harga_per_jam' => 5000,
                 'spek_cpu'      => 'Intel Core i5-12400F',
                 'spek_gpu'      => 'NVIDIA GTX 1660 Super',
                 'spek_ram'      => '16GB DDR4',
@@ -30,7 +29,6 @@ class DatabaseSeeder extends Seeder
             ],
             [
                 'nama_zona'     => 'Noble',
-                'harga_per_jam' => 8000,
                 'spek_cpu'      => 'Intel Core i5-13400F',
                 'spek_gpu'      => 'NVIDIA RTX 4060',
                 'spek_ram'      => '16GB DDR5',
@@ -38,7 +36,6 @@ class DatabaseSeeder extends Seeder
             ],
             [
                 'nama_zona'     => 'Royalty',
-                'harga_per_jam' => 12000,
                 'spek_cpu'      => 'Intel Core i7-14700F',
                 'spek_gpu'      => 'NVIDIA RTX 4070 Super',
                 'spek_ram'      => '32GB DDR5',
@@ -94,26 +91,29 @@ class DatabaseSeeder extends Seeder
 
         // Pc
         $daftarPc = [
-            ['id_zona' => 1, 'status_pc' => 'A'], // otomatis jadi CM-01 & 192.168.1.1
-            ['id_zona' => 1, 'status_pc' => 'O'], // otomatis jadi CM-02 & 192.168.1.2
-            ['id_zona' => 1, 'status_pc' => 'A'], // otomatis jadi CM-03 & 192.168.1.3
-            ['id_zona' => 2, 'status_pc' => 'A'], // otomatis jadi NB-01 & 192.168.2.1
-            ['id_zona' => 2, 'status_pc' => 'O'], // otomatis jadi NB-02 & 192.168.2.2
-            ['id_zona' => 2, 'status_pc' => 'M'], // otomatis jadi NB-03 & 192.168.2.3
-            ['id_zona' => 3, 'status_pc' => 'A'], // otomatis jadi RY-01 & 192.168.3.1
-            ['id_zona' => 3, 'status_pc' => 'O'], // otomatis jadi RY-02 & 192.168.3.2
+            ['id_zona' => 1, 'status_pc' => 'A'],
+            ['id_zona' => 1, 'status_pc' => 'O'],
+            ['id_zona' => 1, 'status_pc' => 'A'],
+            ['id_zona' => 2, 'status_pc' => 'A'],
+            ['id_zona' => 2, 'status_pc' => 'O'],
+            ['id_zona' => 2, 'status_pc' => 'M'],
+            ['id_zona' => 3, 'status_pc' => 'A'],
+            ['id_zona' => 3, 'status_pc' => 'O'],
         ];
 
         foreach ($daftarPc as $pc) {
             Pc::create($pc);
         }
 
-        // 5. PAKET BILLING (Murni paket bundling/hemat)
+        // Paket Billing
         DB::table('paket_billing')->insert([
+            ['id_zona' => 1, 'nama_paket' => 'Commoner Reguler 1 Jam', 'durasi_jam' => 1, 'harga_paket' => 5000, 'status_aktif' => true],
             ['id_zona' => 1, 'nama_paket' => 'Commoner Hemat 3 Jam', 'durasi_jam' => 3, 'harga_paket' => 13000, 'status_aktif' => true],
             ['id_zona' => 1, 'nama_paket' => 'Commoner Puas 5 Jam',  'durasi_jam' => 5, 'harga_paket' => 20000, 'status_aktif' => true],
+            ['id_zona' => 2, 'nama_paket' => 'Noble Reguler 1 Jam', 'durasi_jam' => 1, 'harga_paket' => 8000, 'status_aktif' => true],
             ['id_zona' => 2, 'nama_paket' => 'Noble Hemat 3 Jam',    'durasi_jam' => 3, 'harga_paket' => 21000, 'status_aktif' => true],
             ['id_zona' => 2, 'nama_paket' => 'Noble Puas 5 Jam',     'durasi_jam' => 5, 'harga_paket' => 34000, 'status_aktif' => true],
+            ['id_zona' => 3, 'nama_paket' => 'Royalty Reguler 1 Jam', 'durasi_jam' => 1, 'harga_paket' => 12000, 'status_aktif' => true],
             ['id_zona' => 3, 'nama_paket' => 'Royalty Hemat 3 Jam',  'durasi_jam' => 3, 'harga_paket' => 32000, 'status_aktif' => true],
             ['id_zona' => 3, 'nama_paket' => 'Royalty Puas 5 Jam',   'durasi_jam' => 5, 'harga_paket' => 50000, 'status_aktif' => true],
         ]);
@@ -129,55 +129,31 @@ class DatabaseSeeder extends Seeder
         ]);
 
         // Transaksi
-        DB::table('transaksi')->insert([
-            [
-                'id_transaksi' => 'NX-9938210',
-                'id_akun_pelanggan' => 3,
-                'id_akun_kasir' => null,
-                'waktu_transaksi' => '2026-11-18 10:24:00',
-                'total_bayar' => 24000,
-                'metode_pembayaran' => 'QRIS Dinamis',
-                'status_pembayaran' => 'Sukses',
-                'kode_referensi' => 'MID-QRIS-882910A',
-            ],
-            [
-                'id_transaksi' => 'NX-9934112',
-                'id_akun_pelanggan' => 3,
-                'id_akun_kasir' => null,
-                'waktu_transaksi' => '2026-11-15 14:10:00',
-                'total_bayar' => 30000,
-                'metode_pembayaran' => 'BCA Virtual Account',
-                'status_pembayaran' => 'Sukses',
-                'kode_referensi' => 'MID-VA-771293B',
-            ],
-            [
-                'id_transaksi' => 'NX-9921094',
-                'id_akun_pelanggan' => 4,
-                'id_akun_kasir' => 2,
-                'waktu_transaksi' => '2026-11-16 20:05:00',
-                'total_bayar' => 14000,
-                'metode_pembayaran' => 'Tunai Kasir',
-                'status_pembayaran' => 'Sukses',
-                'kode_referensi' => 'CSH-20261116-01',
-            ],
-            [
-                'id_transaksi' => 'NX-9908842',
-                'id_akun_pelanggan' => 5,
-                'id_akun_kasir' => null,
-                'waktu_transaksi' => '2026-11-18 12:55:00',
-                'total_bayar' => 75000,
-                'metode_pembayaran' => 'Mandiri VA',
-                'status_pembayaran' => 'Pending',
-                'kode_referensi' => 'MID-VA-990128C',
-            ],
-        ]);
+        $trx = DB::selectOne("
+            INSERT INTO transaksi (
+                id_akun_pelanggan, id_akun_kasir, waktu_transaksi,
+                total_bayar, metode_pembayaran, status_pembayaran, kode_referensi
+            )
+            VALUES (?, ?, ?, ?, ?, ?, ?)
+            RETURNING id_transaksi
+        ", [3, 2, now(), 30000, 'Tunai', 'Lunas', null]);
 
         // Detail Transaksi
         DB::table('detail_transaksi')->insert([
-            ['id_transaksi' => 'NX-9938210', 'id_zona' => 2, 'durasi_beli_menit' => 120, 'subtotal_harga' => 24000],
-            ['id_transaksi' => 'NX-9934112', 'id_zona' => 1, 'durasi_beli_menit' => 300, 'subtotal_harga' => 30000],
-            ['id_transaksi' => 'NX-9921094', 'id_zona' => 1, 'durasi_beli_menit' => 120, 'subtotal_harga' => 14000],
-            ['id_transaksi' => 'NX-9908842', 'id_zona' => 3, 'durasi_beli_menit' => 180, 'subtotal_harga' => 75000],
+            [
+                'id_transaksi'      => $trx->id_transaksi,
+                'id_paket'          => 1,
+                'qty'               => 2,
+                'durasi_beli_menit' => 120,
+                'subtotal_harga'    => 10000,
+            ],
+            [
+                'id_transaksi'      => $trx->id_transaksi,
+                'id_paket'          => 3,
+                'qty'               => 1,
+                'durasi_beli_menit' => 300,
+                'subtotal_harga'    => 20000,
+            ],
         ]);
 
         // Sesi Bermain

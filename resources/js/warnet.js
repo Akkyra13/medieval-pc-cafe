@@ -87,6 +87,27 @@ function parseJsonAttr(el, attrName, fallback = null) {
   }
 }
 
+function extractTextFromCandidate(val) {
+  if (val === null || val === undefined) return "";
+  if (typeof val === "object") {
+    return String(
+      val.username ??
+      val.nama_akun ??
+      val.nama_member ??
+      val.nama_user ??
+      val.nama_pelanggan ??
+      val.nama_paket ??
+      val.nama_bill ??
+      val.nama_zona ??
+      val.nama ??
+      val.name ??
+      val.label ??
+      ""
+    ).trim();
+  }
+  return String(val).trim();
+}
+
 function normalizeZones(rawZones) {
   if (!Array.isArray(rawZones) || rawZones.length === 0) return warnetStore.zones;
   return rawZones.map((z, idx) => {
@@ -138,8 +159,13 @@ function normalizePcs(rawPcs) {
       "akun.nama",
       "akun.name",
       "member.username",
+      "sesiBermain.akun.username",
+      "sesiBermain.akun.nama",
+      "sesiBermain.username",
       "sesi_aktif.akun.username",
-      "sesi.akun.username"
+      "sesi_aktif.username",
+      "sesi.akun.username",
+      "sesi.username"
     ], null);
     const resolvedUser = (typeof rawUser === "object" && rawUser !== null)
       ? (rawUser.username ?? rawUser.nama ?? rawUser.name ?? null)
@@ -171,40 +197,76 @@ function normalizeAccounts(rawUsers) {
   }));
 }
 
+function extractPriceFromBill(rawBill, fallbackPrice = 0) {
+  const candidate = pickFirstValue(rawBill, [
+    "price",
+    "harga",
+    "harga_paket",
+    "harga_jual",
+    "harga_satuan",
+    "harga_per_jam",
+    "tarif_per_jam",
+    "tarif_paket",
+    "tarif",
+    "nominal_harga",
+    "nominal_paket",
+    "nominal",
+    "total_harga",
+    "total_biaya",
+    "jumlah_bayar",
+    "total",
+    "biaya",
+    "paket.harga",
+    "paket.price",
+    "paket.tarif",
+    "paket.nominal",
+    "bill.harga",
+    "bill.price",
+    "billing.harga",
+    "billing.price",
+    "pivot.harga",
+    "pivot.price"
+  ], null);
+  if (candidate !== null && candidate !== undefined && String(candidate).trim() !== "") {
+    const num = parseNumberSafe(candidate, NaN);
+    if (Number.isFinite(num) && num > 0) {
+      return num;
+    }
+    if (Number.isFinite(num) && num === 0 && (
+      "price" in (rawBill || {}) ||
+      "harga" in (rawBill || {}) ||
+      "tarif" in (rawBill || {}) ||
+      "nominal" in (rawBill || {})
+    )) {
+      return 0;
+    }
+  }
+  return parseNumberSafe(fallbackPrice, 0);
+}
+
 function normalizeBills(rawBills) {
   if (!Array.isArray(rawBills) || rawBills.length === 0) return warnetStore.packages;
   return rawBills.map((p, idx) => {
     const fallbackPkg = warnetStore.packages[idx] || warnetStore.packages[0];
-    const pkgName = String(pickFirstValue(p, ["name", "nama_paket", "nama_bill", "nama", "judul", "paket.nama_paket", "paket.name"], `Paket ${idx + 1}`));
+    const pkgNameRaw = pickFirstValue(p, [
+      "name",
+      "nama_paket",
+      "nama_bill",
+      "nama",
+      "judul",
+      "paket.nama_paket",
+      "paket.name",
+      "paket.nama",
+      "bill.nama_paket",
+      "bill.name"
+    ], `Paket ${idx + 1}`);
+    const pkgName = typeof pkgNameRaw === "object" && pkgNameRaw !== null
+      ? (pkgNameRaw.nama_paket ?? pkgNameRaw.name ?? pkgNameRaw.nama ?? `Paket ${idx + 1}`)
+      : String(pkgNameRaw);
     const matchedByName = warnetStore.packages.find(
-      item => item.name.toLowerCase() === pkgName.toLowerCase()
+      item => item.name.toLowerCase() === String(pkgName).toLowerCase()
     );
     const effectiveFallback = matchedByName || fallbackPkg;
-    const rawPrice = pickFirstValue(p, [
-      "price",
-      "harga",
-      "harga_paket",
-      "harga_jual",
-      "harga_satuan",
-      "harga_per_jam",
-      "tarif_per_jam",
-      "nominal_harga",
-      "nominal_paket",
-      "tarif",
-      "tarif_paket",
-      "nominal",
-      "total_harga",
-      "total_biaya",
-      "jumlah_bayar",
-      "total",
-      "biaya",
-      "paket.harga",
-      "paket.price",
-      "bill.harga",
-      "billing.harga",
-      "pivot.harga",
-      "pivot.price"
-    ], 0);
     const rawHours = pickFirstValue(p, [
       "hours",
       "durasi_jam",
@@ -212,20 +274,24 @@ function normalizeBills(rawBills) {
       "jam",
       "jumlah_jam",
       "paket.durasi_jam",
-      "paket.hours"
+      "paket.hours",
+      "paket.durasi"
     ], effectiveFallback?.hours ?? 1);
-    const parsedPrice = parseNumberSafe(rawPrice, 0);
     const parsedHours = parseNumberSafe(rawHours, effectiveFallback?.hours ?? 1);
+    const parsedPrice = extractPriceFromBill(p, effectiveFallback?.price ?? 0);
     const activeRaw = pickFirstValue(p, ["active", "is_active", "aktif", "status_aktif", "status"], true);
     const isActive = typeof activeRaw === "string"
       ? !["0", "false", "nonaktif", "inactive", "tidak aktif"].includes(activeRaw.toLowerCase())
       : Boolean(activeRaw);
     return {
       id: parseNumberSafe(pickFirstValue(p, ["id", "id_paket", "id_bill", "paket_id", "bill_id"], idx + 1), idx + 1),
-      zoneId: parseNumberSafe(pickFirstValue(p, ["zoneId", "id_zona", "zona_id", "zone_id", "zona.id_zona", "zona.id"], effectiveFallback?.zoneId ?? 1), 1),
-      name: pkgName,
+      zoneId: parseNumberSafe(
+        pickFirstValue(p, ["zoneId", "id_zona", "zona_id", "zone_id", "zona.id_zona", "zona.id", "paket.id_zona"], effectiveFallback?.zoneId ?? 1),
+        1
+      ),
+      name: String(pkgName),
       hours: parsedHours,
-      price: parsedPrice > 0 ? parsedPrice : (effectiveFallback?.price ?? 0),
+      price: parsedPrice,
       active: isActive
     };
   });
@@ -233,102 +299,188 @@ function normalizeBills(rawBills) {
 
 function normalizeTransactions(rawTx) {
   if (!Array.isArray(rawTx) || rawTx.length === 0) return warnetStore.transactions;
+
+  const rootEl =
+    document.getElementById("billing-page-root") ||
+    document.getElementById("admin-billing-root") ||
+    document.getElementById("profile-page-root");
+  const zones = normalizeZones(parseJsonAttr(rootEl, "zones", null));
+  const packages = normalizeBills(
+    parseJsonAttr(rootEl, "bills", null) ?? parseJsonAttr(rootEl, "packages", null)
+  );
+
   return rawTx.map(t => {
-    const memberVal = pickFirstValue(t, [
-      "member",
-      "nama_member",
-      "member_name",
-      "username",
-      "nama_user",
-      "nama_akun",
-      "nama",
-      "name",
-      "id_akun",
-      "akun_id",
-      "user_id",
-      "member_id",
-      "akun.username",
-      "akun.name",
-      "akun.nama",
-      "akun.nama_lengkap",
-      "user.username",
-      "user.name",
-      "user.nama",
-      "member.username",
-      "member.name",
-      "member.nama"
-    ], "-");
-    const timeVal = pickFirstValue(t, [
-      "time",
-      "waktu",
-      "waktu_transaksi",
-      "tgl_transaksi",
-      "tanggal_transaksi",
-      "tanggal",
-      "created_at",
-      "updated_at"
-    ], "-");
-    const zoneRaw = pickFirstValue(t, [
-      "nama_zona",
-      "zona",
-      "zone",
-      "zona.nama_zona",
-      "zona.name",
-      "paket.zona.nama_zona",
-      "paket.zona.name",
-      "bill.zona.nama_zona"
-    ], "");
-    const pkgRaw = pickFirstValue(t, [
-      "nama_paket",
-      "nama_bill",
-      "paket",
-      "bill",
-      "paket.nama_paket",
-      "paket.name",
-      "bill.nama_paket",
-      "bill.name"
-    ], "");
-    const durasiJam = pickFirstValue(t, [
-      "durasi_jam",
-      "durasi",
-      "hours",
-      "jam",
-      "jumlah_jam",
-      "paket.durasi_jam",
-      "paket.hours",
-      "bill.durasi_jam"
-    ], "");
-    const durasiMenit = pickFirstValue(t, [
-      "durasi_menit",
-      "menit",
-      "minutes"
-    ], "");
-    let builtLabel = pickFirstValue(t, [
-      "label",
-      "zona_durasi",
-      "zona_dan_durasi",
-      "paket_durasi",
-      "paket_dan_durasi",
-      "keterangan",
-      "deskripsi",
-      "catatan",
-      "item"
-    ], "");
-    if (!builtLabel || String(builtLabel).trim() === "-") {
-      const zoneName = (typeof zoneRaw === "object" && zoneRaw !== null)
-        ? (zoneRaw.nama_zona ?? zoneRaw.name ?? zoneRaw.nama ?? "")
-        : (zoneRaw ?? "");
-      const pkgName = (typeof pkgRaw === "object" && pkgRaw !== null)
-        ? (pkgRaw.nama_paket ?? pkgRaw.name ?? pkgRaw.nama ?? "")
-        : (pkgRaw ?? "");
-      let durText = "";
-      if (durasiJam !== "" && durasiJam !== null) {
-        const dStr = String(durasiJam).trim();
-        durText = dStr.toLowerCase().includes("jam") ? ` (${dStr})` : ` (${dStr} Jam)`;
-      } else if (durasiMenit !== "" && durasiMenit !== null) {
-        const mStr = String(durasiMenit).trim();
-        durText = mStr.toLowerCase().includes("menit") ? ` (${mStr})` : ` (${mStr} Menit)`;
+    const memberCandidates = [
+      t.member,
+      t.nama_member,
+      t.member_name,
+      t.username,
+      t.nama_user,
+      t.nama_akun,
+      t.nama_pelanggan,
+      t.akun,
+      t.akun_pelanggan,
+      t.akunPelanggan,
+      t.pelanggan,
+      t.user,
+      t.nama,
+      t.name
+    ];
+
+    let memberVal = "-";
+    for (const cand of memberCandidates) {
+      const text = extractTextFromCandidate(cand);
+      if (text !== "" && text !== "-") {
+        memberVal = text;
+        break;
       }
+    }
+
+    const rawAccountId = pickFirstValue(
+      t,
+      [
+        "id_akun_pelanggan",
+        "id_akun",
+        "akun_id",
+        "pelanggan_id",
+        "user_id",
+        "member_id",
+        "akun_pelanggan.id_akun",
+        "akunPelanggan.id_akun",
+        "akun.id_akun",
+        "akun.id",
+        "user.id"
+      ],
+      null
+    );
+
+    if (memberVal === "-" && rawAccountId !== null && String(rawAccountId).trim() !== "") {
+      memberVal = `Member #${rawAccountId}`;
+    }
+
+    const timeVal = extractTextFromCandidate(
+      pickFirstValue(t, [
+        "time",
+        "waktu",
+        "waktu_transaksi",
+        "tgl_transaksi",
+        "tanggal_transaksi",
+        "tanggal",
+        "created_at",
+        "updated_at"
+      ], "-")
+    ) || "-";
+
+    const directLabel = extractTextFromCandidate(
+      pickFirstValue(t, [
+        "label",
+        "zona_durasi",
+        "zona_dan_durasi",
+        "paket_durasi",
+        "paket_dan_durasi",
+        "nama_paket",
+        "keterangan",
+        "deskripsi",
+        "catatan",
+        "jenis_transaksi",
+        "tipe_transaksi",
+        "item"
+      ], "")
+    );
+
+    const amountVal = pickFirstValue(t, [
+      "amount",
+      "total_bayar",
+      "nominal",
+      "total",
+      "total_harga",
+      "harga",
+      "biaya"
+    ], 0);
+    const parsedAmount = parseNumberSafe(amountVal, 0);
+
+    let builtLabel = directLabel;
+    if (!builtLabel || builtLabel === "-") {
+      const matchedPkgId = parseNumberSafe(
+        pickFirstValue(t, ["id_paket", "paket_id", "id_bill", "bill_id"], NaN),
+        NaN
+      );
+      let matchedPkg = Number.isFinite(matchedPkgId)
+        ? packages.find(p => Number(p.id) === Number(matchedPkgId))
+        : null;
+
+      if (!matchedPkg && parsedAmount > 0) {
+        matchedPkg = packages.find(p => Number(p.price) === Number(parsedAmount)) || null;
+      }
+
+      const matchedZoneId = parseNumberSafe(
+        pickFirstValue(
+          t,
+          ["id_zona", "zona_id", "zone_id", "paket.id_zona", "paket_billing.id_zona"],
+          matchedPkg?.zoneId ?? NaN
+        ),
+        NaN
+      );
+      const matchedZone = Number.isFinite(matchedZoneId)
+        ? zones.find(z => Number(z.id) === Number(matchedZoneId))
+        : null;
+
+      const zoneName = extractTextFromCandidate(
+        pickFirstValue(t, [
+          "nama_zona",
+          "zona",
+          "zone",
+          "paket.zona",
+          "paket_billing.zona",
+          "paketBilling.zona",
+          "bill.zona"
+        ], matchedZone?.name || "")
+      );
+
+      const pkgName = extractTextFromCandidate(
+        pickFirstValue(t, [
+          "nama_paket",
+          "nama_bill",
+          "paket",
+          "paket_billing",
+          "paketBilling",
+          "bill",
+          "billing"
+        ], matchedPkg?.name || "")
+      );
+
+      const durasiJam = extractTextFromCandidate(
+        pickFirstValue(t, [
+          "durasi_jam",
+          "durasi",
+          "hours",
+          "jam",
+          "jumlah_jam",
+          "paket.durasi_jam",
+          "paket.hours",
+          "paket_billing.durasi_jam",
+          "paketBilling.durasi_jam",
+          "bill.durasi_jam"
+        ], matchedPkg?.hours ?? "")
+      );
+
+      const durasiMenit = extractTextFromCandidate(
+        pickFirstValue(t, [
+          "durasi_menit",
+          "menit",
+          "minutes",
+          "paket.durasi_menit",
+          "paket_billing.durasi_menit"
+        ], "")
+      );
+
+      let durText = "";
+      if (durasiJam !== "") {
+        durText = durasiJam.toLowerCase().includes("jam") ? ` (${durasiJam})` : ` (${durasiJam} Jam)`;
+      } else if (durasiMenit !== "") {
+        durText = durasiMenit.toLowerCase().includes("menit") ? ` (${durasiMenit})` : ` (${durasiMenit} Menit)`;
+      }
+
       if (zoneName && pkgName) {
         builtLabel = `${zoneName} - ${pkgName}${durText}`;
       } else if (pkgName) {
@@ -337,35 +489,40 @@ function normalizeTransactions(rawTx) {
         builtLabel = `${zoneName}${durText}`;
       } else if (durText) {
         builtLabel = durText.replace(/^\s*\(|\)\s*$/g, "");
+      } else if (parsedAmount > 0) {
+        const matchedZoneByRate = zones.find(
+          z => Number(z.ratePerHour) > 0 && parsedAmount % Number(z.ratePerHour) === 0
+        );
+        if (matchedZoneByRate) {
+          const estHours = parsedAmount / Number(matchedZoneByRate.ratePerHour);
+          builtLabel = `${matchedZoneByRate.name} - Top-up (${estHours} Jam)`;
+        } else {
+          builtLabel = "Top-up Billing";
+        }
       } else {
         builtLabel = "-";
       }
     }
-    const methodVal = pickFirstValue(t, [
-      "method",
-      "metode_pembayaran",
-      "metode",
-      "payment_method",
-      "channel_pembayaran"
-    ], "-");
-    const amountVal = pickFirstValue(t, [
-      "amount",
-      "nominal",
-      "total",
-      "total_harga",
-      "total_bayar",
-      "harga",
-      "biaya"
-    ], 0);
+
+    const methodVal = extractTextFromCandidate(
+      pickFirstValue(t, [
+        "method",
+        "metode_pembayaran",
+        "metode",
+        "payment_method",
+        "channel_pembayaran"
+      ], "-")
+    ) || "-";
+
     return {
       id: String(pickFirstValue(t, ["id", "id_transaksi", "kode_transaksi", "no_transaksi", "transaction_id"], "-")),
       member: String(memberVal),
-      ownerId: pickFirstValue(t, ["id_akun", "akun_id", "user_id", "member_id", "akun.id_akun", "akun.id", "user.id"], null),
+      ownerId: rawAccountId,
       ownerUsername: pickFirstValue(t, ["username", "member_username", "akun.username", "user.username"], null),
       time: String(timeVal),
       label: String(builtLabel),
       method: String(methodVal),
-      amount: parseNumberSafe(amountVal, 0)
+      amount: parsedAmount
     };
   });
 }
@@ -446,6 +603,9 @@ function getBackendProfilePayload() {
     if (parsedUser !== null) userData = parsedUser;
     if (parsedBilling !== null) billingData = parsedBilling;
   }
+  if (!billingData && userData && typeof userData === "object") {
+    billingData = userData.saldoWaktu ?? userData.saldo_waktu ?? null;
+  }
   return { userData, billingData };
 }
 
@@ -473,8 +633,10 @@ function extractQuotaFromBilling(billingData, fallbackQuota) {
     const result = { ...defaultQuota };
     billingData.forEach(item => {
       if (!item) return;
-      const zoneVal = String(item.zona ?? item.zone ?? item.nama_zona ?? item.id_zona ?? "").toLowerCase();
-      const mins = parseNumberSafe(item.sisa_menit ?? item.menit ?? item.kuota ?? item.saldo ?? 0, 0);
+      const zoneVal = String(
+        item.zona ?? item.zone ?? item.nama_zona ?? item.zona?.nama_zona ?? item.zona?.name ?? item.id_zona ?? ""
+      ).toLowerCase();
+      const mins = parseNumberSafe(item.sisa_menit ?? item.menit ?? item.kuota ?? item.saldo ?? item.balance ?? 0, 0);
       if (zoneVal === "commoner" || zoneVal === "1") result[1] = mins;
       if (zoneVal === "noble" || zoneVal === "2") result[2] = mins;
       if (zoneVal === "royalty" || zoneVal === "3") result[3] = mins;
@@ -512,6 +674,31 @@ function extractQuotaFromBilling(billingData, fallbackQuota) {
   return defaultQuota;
 }
 
+function resolveActivePcFromUser(backendUser, backendBilling, fallbackPc) {
+  const sesi = backendUser?.sesiBermain ?? backendUser?.sesi_bermain ?? null;
+  let sesiPc = null;
+  if (Array.isArray(sesi)) {
+    const activeItem = sesi.find(item => {
+      const st = String(item?.status ?? "").toLowerCase();
+      const endAt = item?.waktu_selesai ?? item?.selesai ?? item?.end_at ?? null;
+      return ["aktif", "berjalan", "digunakan", "terkunci", "active"].includes(st) || endAt === null;
+    }) || sesi[sesi.length - 1];
+    sesiPc = activeItem?.id_pc ?? activeItem?.pc_id ?? activeItem?.pc?.id_pc ?? activeItem?.pc?.id ?? null;
+  } else if (sesi && typeof sesi === "object") {
+    sesiPc = sesi.id_pc ?? sesi.pc_id ?? sesi.pc?.id_pc ?? sesi.pc?.id ?? null;
+  }
+  return (
+    sesiPc ??
+    backendUser?.active_pc ??
+    backendUser?.activePc ??
+    backendUser?.id_pc ??
+    backendBilling?.id_pc ??
+    backendBilling?.pc_id ??
+    fallbackPc ??
+    null
+  );
+}
+
 function getResolvedProfileMember() {
   const { userData: backendUser, billingData: backendBilling } = getBackendProfilePayload();
   const fallbackMember = getActiveMember();
@@ -521,13 +708,7 @@ function getResolvedProfileMember() {
     username: backendUser?.username ?? fallbackMember?.username ?? "member",
     name: backendUser?.name ?? backendUser?.nama ?? fallbackMember?.name ?? "-",
     phone: backendUser?.phone ?? backendUser?.no_hp ?? backendUser?.telepon ?? fallbackMember?.phone ?? "-",
-    activePc:
-      backendUser?.active_pc ??
-      backendUser?.activePc ??
-      backendBilling?.id_pc ??
-      backendBilling?.pc_id ??
-      fallbackMember?.activePc ??
-      null,
+    activePc: resolveActivePcFromUser(backendUser, backendBilling, fallbackMember?.activePc),
     quota: extractQuotaFromBilling(backendBilling, fallbackMember?.quota)
   };
 }
@@ -863,6 +1044,7 @@ function renderProfile() {
         t.ownerId,
         t._raw?.username,
         t._raw?.id_akun,
+        t._raw?.id_akun_pelanggan,
         t._raw?.user_id
       ]
         .filter(v => v !== null && v !== undefined && String(v).trim() !== "" && String(v).trim() !== "-")

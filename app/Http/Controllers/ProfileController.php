@@ -4,7 +4,6 @@ namespace App\Http\Controllers;
 
 use Illuminate\Http\Request;
 use App\Models\Akun;
-use App\Models\SaldoWaktu;
 use App\Models\Transaksi;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Hash;
@@ -33,10 +32,11 @@ class ProfileController extends Controller
     public function index()
     {
         // $user = Akun::where('id_akun', Auth::id())->first();
-        $user = Akun::with('saldoWaktu.zona', 'sesiBermain', 'transaksiPelanggan');
+        $user = Akun::with('saldoWaktu.zona', 'sesiBermain', 'transaksiPelanggan')->get();
+        $transaksi = Transaksi::whereHas('detailTransaksi', fn ($r) => $r->where('id_akun_pelanggan', Auth::id())->get());
         // $billing = SaldoWaktu::where('id_akun', Auth::id());
         // $transactions = Transaksi::all();
-        return view('user.profile', compact('user'));
+        return view('user.profile', compact('user', 'transaksi'));
     }
 
     /**

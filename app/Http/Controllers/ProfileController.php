@@ -41,7 +41,7 @@ class ProfileController extends Controller
             ->orderByDesc('waktu_transaksi')
             ->get();
 
-        $billing = $user()->saldoWaktu->pluck('sisa_waktu_menit', 'id_zona');
+        $billing = $user->saldoWaktu->pluck('sisa_waktu_menit', 'id_zona');
         // $user = Akun::with('saldoWaktu.zona', 'sesiBermain', 'transaksiPelanggan')->where('id_akun', Auth::id())->get();
         // $transaksi = Transaksi::whereHas('detailTransaksi', fn ($r) => $r->where('id_akun_pelanggan', Auth::id())->orderByDesc('waktu_transaksi'))->get();
         // $billing = SaldoWaktu::where('id_akun', Auth::id());

@@ -5,17 +5,20 @@
 @section('content')
 @include('partials.navbar-admin')
 @php
-    $billsList = $bills ?? ($packages ?? collect());
-    $zonesList = $zones ?? collect();
-    $transactionsList = $transactions ?? ($riwayatTransaksi ?? collect());
+$billsList = $paket ?? ($bills ?? ($packages ?? collect()));
+$eceranList = $eceran ?? collect();
+$zonesList = $zones ?? collect();
+$transactionsList = $transactions ?? ($transaksi ?? ($riwayatTransaksi ?? collect()));
+$accountsList = $user ?? ($users ?? ($accounts ?? ($akunPelanggan ?? collect())));
 @endphp
 <main
     id="admin-billing-root"
     class="container"
     data-bills='@json($billsList)'
+    data-eceran='@json($eceranList)'
     data-zones='@json($zonesList)'
     data-transactions='@json($transactionsList)'
->
+    data-accounts='@json($accountsList)'>
     <div class="section-header">
         <div>
             <div class="section-title">Manajemen Zona, Tarif & Paket Billing</div>

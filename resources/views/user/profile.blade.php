@@ -6,67 +6,69 @@
 @include('partials.navbar-user')
 
 @php
-    $userObj = $user ?? null;
-    $billingObj = $billing ?? null;
+$userObj = $user ?? null;
+$billingObj = $billing ?? null;
 
-    $transactionsList = $transactions
-        ?? ($riwayatTransaksi
-        ?? ($userTransactions
-        ?? ($transaksi
-        ?? ($history
-        ?? (data_get($userObj, 'transactions')
-        ?? (data_get($userObj, 'transaksi')
-        ?? collect()))))));
+$transactionsList = $transactions
+?? $riwayatTransaksi
+?? $userTransactions
+?? $transaksi
+?? $history
+?? data_get($userObj, 'transactions')
+?? data_get($userObj, 'transaksi')
+?? data_get($userObj, 'riwayatTransaksi')
+?? data_get($userObj, 'riwayat_transaksi')
+?? collect();
 
-    $formatJamMenit = function ($menit) {
-        $totalMenit = max(0, (int) ($menit ?? 0));
-        $jam = intdiv($totalMenit, 60);
-        $sisaMenit = $totalMenit % 60;
-        return $jam . 'j ' . str_pad((string) $sisaMenit, 2, '0', STR_PAD_LEFT) . 'm';
-    };
+$formatJamMenit = function ($menit) {
+$totalMenit = max(0, (int) ($menit ?? 0));
+$jam = intdiv($totalMenit, 60);
+$sisaMenit = $totalMenit % 60;
+return $jam . 'j ' . str_pad((string) $sisaMenit, 2, '0', STR_PAD_LEFT) . 'm';
+};
 
-    $ambilKuotaZona = function ($billing, $zonaKeys, $idZona) {
-        if (empty($billing)) return 0;
+$ambilKuotaZona = function ($billing, $zonaKeys, $idZona) {
+if (empty($billing)) return 0;
 
-        if ($billing instanceof \Illuminate\Support\Collection || is_array($billing)) {
-            foreach ($zonaKeys as $key) {
-                $val = data_get($billing, $key);
-                if (!is_null($val) && !is_array($val) && !is_object($val)) {
-                    return (int) $val;
-                }
-            }
-            $byId = data_get($billing, $idZona);
-            if (!is_null($byId) && !is_array($byId) && !is_object($byId)) {
-                return (int) $byId;
-            }
+if ($billing instanceof \Illuminate\Support\Collection || is_array($billing)) {
+foreach ($zonaKeys as $key) {
+$val = data_get($billing, $key);
+if (!is_null($val) && !is_array($val) && !is_object($val)) {
+return (int) $val;
+}
+}
+$byId = data_get($billing, $idZona);
+if (!is_null($byId) && !is_array($byId) && !is_object($byId)) {
+return (int) $byId;
+}
 
-            foreach ($billing as $item) {
-                $itemZona = strtolower((string) data_get($item, 'zona', data_get($item, 'zone', data_get($item, 'nama_zona', data_get($item, 'id_zona', '')))));
-                if (in_array($itemZona, array_map('strtolower', $zonaKeys), true) || (string) $itemZona === (string) $idZona) {
-                    return (int) data_get($item, 'sisa_menit', data_get($item, 'menit', data_get($item, 'kuota', data_get($item, 'saldo', 0))));
-                }
-            }
-        }
+foreach ($billing as $item) {
+$itemZona = strtolower((string) data_get($item, 'zona', data_get($item, 'zone', data_get($item, 'nama_zona', data_get($item, 'id_zona', '')))));
+if (in_array($itemZona, array_map('strtolower', $zonaKeys), true) || (string) $itemZona === (string) $idZona) {
+return (int) data_get($item, 'sisa_menit', data_get($item, 'menit', data_get($item, 'kuota', data_get($item, 'saldo', 0))));
+}
+}
+}
 
-        foreach ($zonaKeys as $key) {
-            $val = data_get($billing, $key);
-            if (!is_null($val)) {
-                return (int) $val;
-            }
-        }
+foreach ($zonaKeys as $key) {
+$val = data_get($billing, $key);
+if (!is_null($val)) {
+return (int) $val;
+}
+}
 
-        return (int) data_get($billing, 'sisa_menit', data_get($billing, 'menit', data_get($billing, 'kuota', 0)));
-    };
+return (int) data_get($billing, 'sisa_menit', data_get($billing, 'menit', data_get($billing, 'kuota', 0)));
+};
 
-    $commonerMenit = $ambilKuotaZona($billingObj, ['commoner', 'sisa_commoner', 'quota_commoner'], 1);
-    $nobleMenit    = $ambilKuotaZona($billingObj, ['noble', 'sisa_noble', 'quota_noble'], 2);
-    $royaltyMenit  = $ambilKuotaZona($billingObj, ['royalty', 'sisa_royalty', 'quota_royalty'], 3);
+$commonerMenit = $ambilKuotaZona($billingObj, ['commoner', 'sisa_commoner', 'quota_commoner'], 1);
+$nobleMenit = $ambilKuotaZona($billingObj, ['noble', 'sisa_noble', 'quota_noble'], 2);
+$royaltyMenit = $ambilKuotaZona($billingObj, ['royalty', 'sisa_royalty', 'quota_royalty'], 3);
 
-    $userId    = data_get($userObj, 'id_akun', data_get($userObj, 'id', '-'));
-    $username  = data_get($userObj, 'username', '-');
-    $namaUser  = data_get($userObj, 'name', data_get($userObj, 'nama', '-'));
-    $noTelp    = data_get($userObj, 'phone', data_get($userObj, 'no_hp', data_get($userObj, 'telepon', '-')));
-    $activePc  = data_get($userObj, 'active_pc', data_get($userObj, 'activePc', data_get($billingObj, 'id_pc', data_get($billingObj, 'pc_id'))));
+$userId = data_get($userObj, 'id_akun', data_get($userObj, 'id', '-'));
+$username = data_get($userObj, 'username', '-');
+$namaUser = data_get($userObj, 'name', data_get($userObj, 'nama', '-'));
+$noTelp = data_get($userObj, 'phone', data_get($userObj, 'no_hp', data_get($userObj, 'telepon', '-')));
+$activePc = data_get($userObj, 'active_pc', data_get($userObj, 'activePc', data_get($billingObj, 'id_pc', data_get($billingObj, 'pc_id'))));
 @endphp
 
 <main
@@ -74,8 +76,7 @@
     class="container"
     data-user='@json($userObj)'
     data-billing='@json($billingObj)'
-    data-transactions='@json($transactionsList)'
->
+    data-transactions='@json($transactionsList)'>
     <div class="section-header">
         <div>
             <div class="section-title">Profil Member & Sisa Billing</div>

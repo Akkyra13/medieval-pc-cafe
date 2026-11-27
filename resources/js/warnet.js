@@ -183,7 +183,7 @@ function normalizePcs(rawPcs) {
 function normalizeAccounts(rawUsers) {
   if (!Array.isArray(rawUsers) || rawUsers.length === 0) return warnetStore.accounts;
   return rawUsers.map(u => ({
-    id: pickFirstValue(u, ["id", "id_akun", "user_id"], "-"),
+    id: pickFirstValue(u, ["id_akun", "id", "user_id"], "-"),
     username: String(pickFirstValue(u, ["username", "user_name"], "-")),
     name: String(pickFirstValue(u, ["name", "nama", "nama_lengkap"], "-")),
     phone: String(pickFirstValue(u, ["phone", "no_hp", "telepon", "no_telepon"], "-")),
@@ -299,7 +299,6 @@ function normalizeBills(rawBills) {
 
 function normalizeTransactions(rawTx) {
   if (!Array.isArray(rawTx) || rawTx.length === 0) return warnetStore.transactions;
-
   const rootEl =
     document.getElementById("billing-page-root") ||
     document.getElementById("admin-billing-root") ||
@@ -308,34 +307,12 @@ function normalizeTransactions(rawTx) {
   const packages = normalizeBills(
     parseJsonAttr(rootEl, "bills", null) ?? parseJsonAttr(rootEl, "packages", null)
   );
+  const rawAccounts = parseJsonAttr(rootEl, "accounts", null) ?? parseJsonAttr(rootEl, "users", null);
+  const accounts = Array.isArray(rawAccounts) && rawAccounts.length > 0
+    ? normalizeAccounts(rawAccounts)
+    : warnetStore.accounts;
 
   return rawTx.map(t => {
-    const memberCandidates = [
-      t.member,
-      t.nama_member,
-      t.member_name,
-      t.username,
-      t.nama_user,
-      t.nama_akun,
-      t.nama_pelanggan,
-      t.akun,
-      t.akun_pelanggan,
-      t.akunPelanggan,
-      t.pelanggan,
-      t.user,
-      t.nama,
-      t.name
-    ];
-
-    let memberVal = "-";
-    for (const cand of memberCandidates) {
-      const text = extractTextFromCandidate(cand);
-      if (text !== "" && text !== "-") {
-        memberVal = text;
-        break;
-      }
-    }
-
     const rawAccountId = pickFirstValue(
       t,
       [
@@ -354,8 +331,39 @@ function normalizeTransactions(rawTx) {
       null
     );
 
-    if (memberVal === "-" && rawAccountId !== null && String(rawAccountId).trim() !== "") {
-      memberVal = `Member #${rawAccountId}`;
+    const matchedAccount = rawAccountId !== null && String(rawAccountId).trim() !== ""
+      ? accounts.find(acc => String(acc.id).trim().toLowerCase() === String(rawAccountId).trim().toLowerCase())
+      : null;
+
+    const usernameCandidates = [
+      t.username,
+      t.member_username,
+      t.akun_username,
+      t.pelanggan_username,
+      t.akun?.username,
+      t.akun_pelanggan?.username,
+      t.akunPelanggan?.username,
+      t.pelanggan?.username,
+      t.user?.username,
+      matchedAccount?.username,
+      t.member
+    ];
+
+    let memberVal = "-";
+    for (const cand of usernameCandidates) {
+      if (cand !== null && cand !== undefined && typeof cand !== "object") {
+        const text = String(cand).trim();
+        if (text !== "" && text !== "-" && !/^member\s*#\d+$/i.test(text)) {
+          memberVal = text;
+          break;
+        }
+      } else if (typeof cand === "object" && cand !== null && cand.username) {
+        const text = String(cand.username).trim();
+        if (text !== "" && text !== "-") {
+          memberVal = text;
+          break;
+        }
+      }
     }
 
     const timeVal = extractTextFromCandidate(
@@ -408,11 +416,9 @@ function normalizeTransactions(rawTx) {
       let matchedPkg = Number.isFinite(matchedPkgId)
         ? packages.find(p => Number(p.id) === Number(matchedPkgId))
         : null;
-
       if (!matchedPkg && parsedAmount > 0) {
         matchedPkg = packages.find(p => Number(p.price) === Number(parsedAmount)) || null;
       }
-
       const matchedZoneId = parseNumberSafe(
         pickFirstValue(
           t,
@@ -424,7 +430,6 @@ function normalizeTransactions(rawTx) {
       const matchedZone = Number.isFinite(matchedZoneId)
         ? zones.find(z => Number(z.id) === Number(matchedZoneId))
         : null;
-
       const zoneName = extractTextFromCandidate(
         pickFirstValue(t, [
           "nama_zona",
@@ -436,7 +441,6 @@ function normalizeTransactions(rawTx) {
           "bill.zona"
         ], matchedZone?.name || "")
       );
-
       const pkgName = extractTextFromCandidate(
         pickFirstValue(t, [
           "nama_paket",
@@ -448,7 +452,6 @@ function normalizeTransactions(rawTx) {
           "billing"
         ], matchedPkg?.name || "")
       );
-
       const durasiJam = extractTextFromCandidate(
         pickFirstValue(t, [
           "durasi_jam",
@@ -463,7 +466,6 @@ function normalizeTransactions(rawTx) {
           "bill.durasi_jam"
         ], matchedPkg?.hours ?? "")
       );
-
       const durasiMenit = extractTextFromCandidate(
         pickFirstValue(t, [
           "durasi_menit",
@@ -473,14 +475,12 @@ function normalizeTransactions(rawTx) {
           "paket_billing.durasi_menit"
         ], "")
       );
-
       let durText = "";
       if (durasiJam !== "") {
         durText = durasiJam.toLowerCase().includes("jam") ? ` (${durasiJam})` : ` (${durasiJam} Jam)`;
       } else if (durasiMenit !== "") {
         durText = durasiMenit.toLowerCase().includes("menit") ? ` (${durasiMenit})` : ` (${durasiMenit} Menit)`;
       }
-
       if (zoneName && pkgName) {
         builtLabel = `${zoneName} - ${pkgName}${durText}`;
       } else if (pkgName) {
@@ -518,7 +518,7 @@ function normalizeTransactions(rawTx) {
       id: String(pickFirstValue(t, ["id", "id_transaksi", "kode_transaksi", "no_transaksi", "transaction_id"], "-")),
       member: String(memberVal),
       ownerId: rawAccountId,
-      ownerUsername: pickFirstValue(t, ["username", "member_username", "akun.username", "user.username"], null),
+      ownerUsername: memberVal !== "-" ? memberVal : null,
       time: String(timeVal),
       label: String(builtLabel),
       method: String(methodVal),
@@ -1037,25 +1037,27 @@ function renderProfile() {
     const isFromProfileBackend = allTx.length > 0 && allTx[0]._fromProfileBackend;
     const targetUsername = String(member.username || "").trim().toLowerCase();
     const targetId = String(member.id ?? "").trim().toLowerCase();
-    const userTx = allTx.filter(t => {
-      const candidates = [
-        t.member,
-        t.ownerUsername,
-        t.ownerId,
-        t._raw?.username,
-        t._raw?.id_akun,
-        t._raw?.id_akun_pelanggan,
-        t._raw?.user_id
-      ]
-        .filter(v => v !== null && v !== undefined && String(v).trim() !== "" && String(v).trim() !== "-")
-        .map(v => String(v).trim().toLowerCase());
-      if (candidates.length === 0) {
-        return Boolean(isFromProfileBackend);
-      }
-      const matchUser = targetUsername && candidates.includes(targetUsername);
-      const matchId = targetId && targetId !== "-" && candidates.includes(targetId);
-      return matchUser || matchId;
-    });
+    const userTx = isFromProfileBackend
+      ? allTx
+      : allTx.filter(t => {
+          const candidates = [
+            t.member,
+            t.ownerUsername,
+            t.ownerId,
+            t._raw?.username,
+            t._raw?.id_akun,
+            t._raw?.id_akun_pelanggan,
+            t._raw?.user_id
+          ]
+            .filter(v => v !== null && v !== undefined && String(v).trim() !== "" && String(v).trim() !== "-")
+            .map(v => String(v).trim().toLowerCase());
+          if (candidates.length === 0) {
+            return false;
+          }
+          const matchUser = targetUsername && candidates.includes(targetUsername);
+          const matchId = targetId && targetId !== "-" && candidates.includes(targetId);
+          return matchUser || matchId;
+        });
     if (userTx.length === 0) {
       historyBodyEl.innerHTML = `<tr><td colspan="5" class="muted">Belum ada transaksi billing</td></tr>`;
     } else {

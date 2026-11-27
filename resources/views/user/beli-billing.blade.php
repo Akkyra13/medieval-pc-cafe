@@ -5,15 +5,16 @@
 @section('content')
 @include('partials.navbar-user')
 @php
-    $billsList = $bills ?? ($packages ?? collect());
-    $zonesList = $zones ?? collect();
+$billsList = $paket ?? ($bills ?? ($packages ?? collect()));
+$eceranList = $eceran ?? collect();
+$zonesList = $zones ?? collect();
 @endphp
 <main
     id="billing-page-root"
     class="container"
     data-bills='@json($billsList)'
-    data-zones='@json($zonesList)'
->
+    data-eceran='@json($eceranList)'
+    data-zones='@json($zonesList)'>
     <div class="section-header">
         <div>
             <div class="section-title">Beli Billing & Top-up Kuota</div>

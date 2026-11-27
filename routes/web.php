@@ -37,7 +37,7 @@ Route::middleware(['auth', 'role:3']) //checks if user is consumer
 
 
         Route::resource('beli-billing', BillingController::class)
-            ->only(['index', 'store'])->names([
+            ->only(['index'])->names([
                 'index' => 'user.billing',
             ]);
 

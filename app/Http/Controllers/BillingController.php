@@ -17,12 +17,12 @@ class BillingController extends Controller
     {
         $eceran = PaketBilling::with('zona')->where('durasi_jam', 1)->get();
         $paket = PaketBilling::with('zona')->whereNot('durasi_jam', 1)->get();
-        // $zones = Zona::all();
-        $transactions = Transaksi::with('detailTransaksi', 'pelanggan')->get();
-        if (Auth::user()->id_akses === 1) {
-            return view('admin.manajemen-billing', compact('paket', 'eceran', 'transactions'));
+        $zones = Zona::all();
+        if (in_array(Auth::user()->id_akses, [1,2])) {
+            $transactions = Transaksi::with('detailTransaksi', 'pelanggan')->latest('waktu_transaksi')->get();
+            return view('admin.manajemen-billing', compact('paket', 'eceran', 'zones', 'transactions'));
         } else {
-            return view('user.beli-billing', compact('paket', 'eceran'));
+            return view('user.beli-billing', compact('paket', 'eceran', 'zones'));
         }
     }
 

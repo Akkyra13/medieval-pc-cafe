@@ -31,12 +31,22 @@ class ProfileController extends Controller
      */
     public function index()
     {
-        // $user = Akun::where('id_akun', Auth::id())->first();
-        $user = Akun::with('saldoWaktu.zona', 'sesiBermain', 'transaksiPelanggan')->get();
-        $transaksi = Transaksi::whereHas('detailTransaksi', fn ($r) => $r->where('id_akun_pelanggan', Auth::id())->get());
+        $user = Auth::user()->load([
+            'saldoWaktu',
+            'sesiBermain' => fn ($r) => $r->whereNull('waktu_logout'),
+        ]);
+
+        $transaksi = Transaksi::with('detailTransaksi')
+            ->where('id_akun_pelanggan', Auth::id())
+            ->orderByDesc('waktu_transaksi')
+            ->get();
+
+        $billing = $user()->saldoWaktu->pluck('sisa_waktu_menit', 'id_zona');
+        // $user = Akun::with('saldoWaktu.zona', 'sesiBermain', 'transaksiPelanggan')->where('id_akun', Auth::id())->get();
+        // $transaksi = Transaksi::whereHas('detailTransaksi', fn ($r) => $r->where('id_akun_pelanggan', Auth::id())->orderByDesc('waktu_transaksi'))->get();
         // $billing = SaldoWaktu::where('id_akun', Auth::id());
         // $transactions = Transaksi::all();
-        return view('user.profile', compact('user', 'transaksi'));
+        return view('user.profile', compact('user', 'transaksi', 'billing'));
     }
 
     /**
